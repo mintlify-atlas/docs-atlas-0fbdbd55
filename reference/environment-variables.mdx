@@ -150,7 +150,7 @@ If both a command-line flag and an environment variable are set, the command-lin
 <ParamField path="TSSERVER_DATABASE_PLUGIN" type="string" default="sqlite3">
   Specifies the database plugin to use.
   
-  **Accepted values:** `sqlite3`, `mariadb`, `postgresql`
+  **Accepted values:** `sqlite3`, `mariadb`
   
   **CLI equivalent:** `--db-plugin`
 </ParamField>
@@ -164,7 +164,7 @@ If both a command-line flag and an environment variable are set, the command-lin
 <ParamField path="TSSERVER_DATABASE_SQL_CREATE_PATH" type="string" default="create_sqlite">
   Subdirectory in SQL path to use for DB creation scripts.
   
-  **Examples:** `create_sqlite`, `create_mariadb`, `create_postgresql`
+  **Examples:** `create_sqlite`, `create_mariadb`
   
   **CLI equivalent:** `--db-sql-create-path`
 </ParamField>
@@ -217,7 +217,7 @@ If both a command-line flag and an environment variable are set, the command-lin
   **CLI equivalent:** `--db-port`
   
   <Note>
-  Default port varies by database: PostgreSQL (5432), MariaDB/MySQL (3306)
+  Default port varies by database: MariaDB/MySQL (3306)
   </Note>
 </ParamField>
 

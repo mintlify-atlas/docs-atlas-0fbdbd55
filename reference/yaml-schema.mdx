@@ -329,7 +329,7 @@ All database settings are nested under `server.database`:
 <ParamField path="database.plugin" type="string" default="sqlite3">
   Specifies the database plugin to use.
   
-  **Accepted values:** `sqlite3`, `mariadb`, `postgresql`
+  **Accepted values:** `sqlite3`, `mariadb`
   
   ```yaml
   database:
@@ -827,59 +827,6 @@ server:
 
 </Accordion>
 
-### PostgreSQL
-
-<Accordion title="PostgreSQL Configuration">
-
-```yaml
-server:
-  license-path: /opt/teamspeak/licenses
-  accept-license: accept
-  default-voice-port: 9987
-  voice-ip:
-    - 0.0.0.0
-    - "::"
-  machine-id: ts-prod-01
-  filetransfer-port: 30033
-  threads-voice-udp: 8
-  log-path: /var/log/teamspeak
-  
-  database:
-    plugin: postgresql
-    sql-path: /opt/tsserver/sql
-    sql-create-path: /opt/tsserver/sql/create_postgresql
-    client-keep-days: 180
-    config:
-      host: postgres.example.com
-      port: 5432
-      name: teamspeak
-      username: tsserver
-      password: secure_db_password
-      connections: 25
-      timeout: 30
-      log-queries: 0
-  
-  query:
-    pool-size: 8
-    buffer-mb: 50
-    admin-password: admin_password
-    log-commands: 0
-    ssh:
-      enable: 1
-      port: 10022
-      rsa-key: /etc/teamspeak/ssh_host_rsa_key
-    http:
-      enable: 1
-      port: 10080
-    https:
-      enable: 1
-      port: 10443
-      certificate: /etc/ssl/certs/teamspeak.crt
-      private-key: /etc/ssl/private/teamspeak.key
-```
-
-</Accordion>
-
 ### Production Deployment
 
 <Accordion title="Production Configuration">
@@ -977,7 +924,7 @@ server:
   <Accordion title="Performance">
     - Adjust `threads-voice-udp` based on your CPU cores (typically 1 per 2 cores)
     - Increase `database.config.connections` for high-traffic servers
-    - Use MariaDB or PostgreSQL instead of SQLite for production
+    - Use MariaDB instead of SQLite for production
     - Adjust `query.pool-size` based on expected query load
     - Monitor and adjust `query.buffer-mb` if needed
   </Accordion>
@@ -991,7 +938,7 @@ server:
   </Accordion>
   
   <Accordion title="High Availability">
-    - Use external database (MariaDB/PostgreSQL) for clustering
+    - Use external database (MariaDB) for clustering
     - Set unique `machine-id` for each instance
     - Share database across instances
     - Use load balancers for query interfaces
