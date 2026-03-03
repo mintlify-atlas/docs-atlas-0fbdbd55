@@ -1,0 +1,178 @@
+---
+title: Configuration Overview
+description: Learn about the different methods to configure your TeamSpeak 6 Server
+icon: sliders
+---
+
+TeamSpeak 6 Server provides flexible configuration options through three different methods. Choose the approach that best fits your deployment workflow.
+
+## Configuration Methods
+
+<CardGroup cols={3}>
+  <Card title="Command-Line Flags" icon="terminal" href="#command-line-flags">
+    Pass options directly when starting the server
+  </Card>
+  <Card title="Environment Variables" icon="code" href="#environment-variables">
+    Configure via environment variables (ideal for Docker)
+  </Card>
+  <Card title="YAML Configuration" icon="file-code" href="#yaml-configuration">
+    Use a structured configuration file
+  </Card>
+</CardGroup>
+
+## Command-Line Flags
+
+Command-line flags are passed directly when starting the TeamSpeak server binary. This method is useful for quick testing or when you need to override specific settings.
+
+<CodeGroup>
+```bash Basic Example
+./tsserver --accept-license --default-voice-port 9987
+```
+
+```bash With Multiple Options
+./tsserver \
+  --accept-license \
+  --default-voice-port 9987 \
+  --filetransfer-port 30033 \
+  --query-http-enable \
+  --query-http-port 10080
+```
+
+```bash Database Configuration
+./tsserver \
+  --accept-license \
+  --db-plugin mariadb \
+  --db-host 192.168.1.10 \
+  --db-port 3306 \
+  --db-name teamspeak \
+  --db-username tsuser \
+  --db-password secretpass
+```
+</CodeGroup>
+
+<Info>
+  View all available command-line options by running `./tsserver --help`
+</Info>
+
+## Environment Variables
+
+Environment variables provide a clean way to configure the server, especially in containerized environments. Each command-line flag has a corresponding environment variable.
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_QUERY_HTTP_ENABLED=true
+          - TSSERVER_QUERY_HTTP_PORT=10080
+    ```
+  </Tab>
+  <Tab title="Shell Export">
+    ```bash
+    export TSSERVER_LICENSE_ACCEPTED=accept
+    export TSSERVER_DEFAULT_PORT=9987
+    export TSSERVER_FILE_TRANSFER_PORT=30033
+    export TSSERVER_QUERY_HTTP_ENABLED=true
+    export TSSERVER_QUERY_HTTP_PORT=10080
+    ./tsserver
+    ```
+  </Tab>
+  <Tab title="Systemd Service">
+    ```ini
+    [Service]
+    Environment="TSSERVER_LICENSE_ACCEPTED=accept"
+    Environment="TSSERVER_DEFAULT_PORT=9987"
+    Environment="TSSERVER_FILE_TRANSFER_PORT=30033"
+    Environment="TSSERVER_QUERY_HTTP_ENABLED=true"
+    ExecStart=/opt/teamspeak/tsserver
+    ```
+  </Tab>
+</Tabs>
+
+## YAML Configuration
+
+The YAML configuration file provides a structured, version-controllable way to manage complex server configurations. This is the recommended method for production deployments.
+
+```yaml tsserver.yaml
+server:
+  accept-license: accept
+  license-path: .
+  default-voice-port: 9987
+  filetransfer-port: 30033
+  log-path: logs
+  
+  database:
+    plugin: sqlite3
+    sql-create-path: create_sqlite
+    client-keep-days: 30
+    
+  query:
+    pool-size: 2
+    timeout: 300
+    
+    http:
+      enable: 1
+      port: 10080
+```
+
+To use a configuration file:
+
+```bash
+./tsserver --config-file tsserver.yaml
+```
+
+Or via environment variable:
+
+```bash
+export TSSERVER_CONFIG_FILE=tsserver.yaml
+./tsserver
+```
+
+<Info>
+  See the [YAML Configuration](/configuration/yaml-file) page for the complete file structure and all available options.
+</Info>
+
+## Configuration Priority
+
+When multiple configuration methods are used, the server applies them in the following order of precedence (highest to lowest):
+
+1. **Command-line flags** - Highest priority, overrides all other methods
+2. **Environment variables** - Overrides YAML file settings
+3. **YAML configuration file** - Base configuration
+4. **Default values** - Used when no configuration is provided
+
+<Warning>
+  Command-line flags and environment variables will override any values set in the YAML configuration file.
+</Warning>
+
+## Writing Configuration to File
+
+You can generate a YAML configuration file from your current settings (command-line flags and environment variables) using the `--write-config-file` flag:
+
+```bash
+./tsserver --accept-license --default-voice-port 9987 --write-config-file
+```
+
+This will create or update the `tsserver.yaml` file with your current configuration.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Settings" icon="server" href="/configuration/server-settings">
+    Configure core server parameters
+  </Card>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    Set up SQLite or MariaDB
+  </Card>
+  <Card title="Ports & Networking" icon="network-wired" href="/configuration/ports-networking">
+    Configure network ports and bindings
+  </Card>
+  <Card title="YAML Reference" icon="file-code" href="/configuration/yaml-file">
+    Complete YAML file structure
+  </Card>
+</CardGroup>

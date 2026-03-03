@@ -1,0 +1,272 @@
+---
+title: Troubleshooting
+description: Solutions to common issues when running TeamSpeak 6 Server
+icon: wrench
+---
+
+## Port Issues
+
+### Server Not Accessible from External Network
+
+If clients cannot connect to your server from outside your local network, verify port forwarding is configured correctly.
+
+**Default Ports:**
+- **9987/UDP** - Voice communication port
+- **30033/TCP** - File transfer port
+- **10080/TCP** - Web Query port (optional)
+
+**Docker Port Mapping:**
+```bash
+docker run -d \
+  --name teamspeak-server \
+  -p 9987:9987/udp \
+  -p 30033:30033/tcp \
+  teamspeak6-server:latest
+```
+
+<Note>
+Ensure your firewall allows both UDP and TCP traffic on the configured ports.
+</Note>
+
+### Port Already in Use
+
+If you see an error that the default port is already in use, you can change it using command-line arguments or environment variables.
+
+**Command-Line:**
+```bash
+./tsserver --default-voice-port 9988
+```
+
+**Environment Variable:**
+```bash
+export TSSERVER_DEFAULT_VOICE_PORT=9988
+./tsserver
+```
+
+**Docker:**
+```bash
+docker run -d \
+  -p 9988:9988/udp \
+  -e TSSERVER_DEFAULT_VOICE_PORT=9988 \
+  teamspeak6-server:latest
+```
+
+## Database Connection Issues
+
+### Cannot Connect to MariaDB
+
+If you're using MariaDB and the server cannot establish a database connection:
+
+1. **Verify MariaDB is running:**
+   ```bash
+   docker ps | grep mariadb
+   ```
+
+2. **Check connection parameters:**
+   - Hostname (use service name in Docker Compose)
+   - Port (default: 3306)
+   - Database name
+   - Username and password
+
+3. **Test connection manually:**
+   ```bash
+   mysql -h hostname -u username -p database_name
+   ```
+
+<Warning>
+Ensure the MariaDB container is fully initialized before starting the TeamSpeak server. Add a health check or startup delay if needed.
+</Warning>
+
+### SQLite Database Corruption
+
+If you encounter SQLite database corruption:
+
+1. **Stop the server:**
+   ```bash
+   docker stop teamspeak-server
+   ```
+
+2. **Check database integrity:**
+   ```bash
+   sqlite3 /path/to/ts3server.sqlitedb "PRAGMA integrity_check;"
+   ```
+
+3. **Restore from backup** if corruption is detected
+
+<Info>
+Regularly backup your database to prevent data loss. See [Backup & Restore](/operations/backup-restore) for details.
+</Info>
+
+## File Transfer Issues
+
+### File Uploads Failing
+
+If file uploads are not working:
+
+1. **Verify file transfer port is open:**
+   ```bash
+   netstat -tuln | grep 30033
+   ```
+
+2. **Check file transfer port configuration:**
+   - Default port: 30033/TCP
+   - Must be accessible from client networks
+
+3. **Ensure adequate disk space:**
+   ```bash
+   df -h
+   ```
+
+### File Transfer Performance Issues
+
+For slow file transfers:
+
+- Check network bandwidth between client and server
+- Verify no firewall is throttling connections
+- Consider adjusting file transfer buffer settings in configuration
+
+## Docker Issues
+
+### Container Exits Immediately
+
+If your TeamSpeak container starts and then immediately exits:
+
+1. **Check logs for errors:**
+   ```bash
+   docker logs teamspeak-server
+   ```
+
+2. **Verify license acceptance:**
+   ```bash
+   docker run -d \
+     -e TSSERVER_LICENSE_ACCEPTED=accept \
+     teamspeak6-server:latest
+   ```
+
+<Warning>
+The `TSSERVER_LICENSE_ACCEPTED=accept` environment variable is required for the server to start.
+</Warning>
+
+### Volume Permission Issues
+
+If you encounter permission errors with Docker volumes:
+
+```bash
+# Check volume permissions
+docker volume inspect teamspeak-data
+
+# Run container with specific user (if needed)
+docker run -d \
+  --user $(id -u):$(id -g) \
+  -v teamspeak-data:/var/tsserver \
+  teamspeak6-server:latest
+```
+
+### Cannot Access ServerAdmin Key
+
+The ServerAdmin privilege key is displayed in the logs on first startup:
+
+```bash
+# View container logs
+docker logs teamspeak-server
+
+# Follow logs in real-time
+docker logs -f teamspeak-server
+```
+
+Look for a line containing `ServerAdmin privilege key created`.
+
+<Note>
+The ServerAdmin key is only displayed once during initial setup. Save it securely immediately after first startup.
+</Note>
+
+## Performance Issues
+
+### High CPU Usage
+
+- Check the number of connected clients
+- Review server log level (verbose logging increases CPU usage)
+- Monitor for unusual connection patterns that might indicate an attack
+
+### High Memory Usage
+
+- SQLite uses less memory than MariaDB but may be slower for large deployments
+- Check for memory leaks by monitoring over time
+- Ensure container memory limits are appropriate
+
+### Network Latency
+
+- Use `ping` and `traceroute` to diagnose network path issues
+- Consider geographic location of server relative to clients
+- Check for bandwidth saturation
+
+## Configuration Issues
+
+### Configuration Not Applied
+
+If your configuration changes aren't taking effect:
+
+1. **Verify configuration file location:**
+   - Default: `tsserver.yaml` in the server directory
+   - Specify custom location with `--config-file` flag
+
+2. **Check for syntax errors:**
+   ```bash
+   # Generate a default config for reference
+   ./tsserver --write-config-file
+   ```
+
+3. **Restart the server after configuration changes:**
+   ```bash
+   docker restart teamspeak-server
+   ```
+
+### Command-Line Arguments Not Working
+
+Command-line arguments override environment variables and config file settings. Verify:
+
+- Argument syntax is correct (use `--help` to see all options)
+- Arguments come after the executable name
+- No typos in argument names
+
+## Binary Execution Issues
+
+### Permission Denied on Linux
+
+Make the server binary executable:
+
+```bash
+chmod +x tsserver
+./tsserver --accept-license
+```
+
+### Missing Libraries
+
+If you encounter "library not found" errors:
+
+```bash
+# Check required libraries
+ldd ./tsserver
+
+# Install missing dependencies (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get install -y libc6 libstdc++6
+```
+
+## Getting Help
+
+If you're unable to resolve your issue:
+
+1. **Check the logs** - Most issues are explained in error messages
+2. **Review the configuration** - Use `--help` to see all available options
+3. **Visit the Community Forum** - [community.teamspeak.com](https://community.teamspeak.com/c/teamspeak-6-server/45)
+4. **Report bugs on GitHub** - [github.com/teamspeak/teamspeak6-server/issues](https://github.com/teamspeak/teamspeak6-server/issues)
+
+<Info>
+When reporting issues, include:
+- Server version
+- Operating system / Docker version
+- Relevant log excerpts
+- Configuration (redact sensitive information)
+- Steps to reproduce the problem
+</Info>

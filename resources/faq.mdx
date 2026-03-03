@@ -1,0 +1,324 @@
+---
+title: Frequently Asked Questions
+description: Common questions about TeamSpeak 6 Server setup and configuration
+icon: circle-question
+---
+
+## General Questions
+
+<Accordion title="What are the system requirements for TeamSpeak 6 Server?">
+  The TeamSpeak 6 Server is lightweight and can run on minimal hardware:
+  
+  - **CPU:** 1 core (2+ recommended for larger servers)
+  - **RAM:** 512 MB minimum (1 GB+ recommended)
+  - **Storage:** 100 MB for application, plus space for database and logs
+  - **OS:** Linux, Windows, or via Docker
+  
+  Requirements scale with the number of concurrent users.
+</Accordion>
+
+<Accordion title="Should I use Docker or install the binary directly?">
+  **Docker is recommended** for most users because:
+  
+  - Simplified setup and maintenance
+  - Isolated environment prevents conflicts
+  - Easy updates with new image versions
+  - Better portability across systems
+  
+  Use binary installation if you:
+  - Need maximum performance control
+  - Have specific system integration requirements
+  - Prefer direct system-level management
+</Accordion>
+
+<Accordion title="What's the difference between SQLite and MariaDB?">
+  **SQLite** (default):
+  - No separate database server required
+  - Simpler setup
+  - Best for small to medium servers (&lt;50 users)
+  - File-based database
+  
+  **MariaDB**:
+  - Requires separate database server
+  - Better performance at scale
+  - Recommended for large deployments (&gt;50 users)
+  - More complex setup and maintenance
+  
+  See [Database Configuration](/configuration/database) for setup details.
+</Accordion>
+
+## Installation & Setup
+
+<Accordion title="How do I find my ServerAdmin privilege key?">
+  The ServerAdmin key is displayed in the server logs during first startup:
+  
+  ```bash
+  # For Docker:
+  docker logs teamspeak-server
+  
+  # For binary installation, check console output or logs
+  ```
+  
+  Look for a line containing `ServerAdmin privilege key created` followed by the key.
+  
+  <Warning>
+  The key is only shown once. Save it immediately and store it securely.
+  </Warning>
+</Accordion>
+
+<Accordion title="How do I accept the license?">
+  **For binary installation:**
+  ```bash
+  ./tsserver --accept-license
+  ```
+  
+  **For Docker:**
+  ```bash
+  docker run -d \
+    -e TSSERVER_LICENSE_ACCEPTED=accept \
+    teamspeaksystems/teamspeak6-server:latest
+  ```
+  
+  The license must be accepted for the server to start.
+</Accordion>
+
+<Accordion title="Can I run multiple TeamSpeak servers on the same machine?">
+  Yes! You need to configure different ports for each instance:
+  
+  **Docker example:**
+  ```bash
+  # Server 1
+  docker run -d --name ts-server-1 \
+    -p 9987:9987/udp -p 30033:30033 \
+    teamspeak6-server:latest
+  
+  # Server 2
+  docker run -d --name ts-server-2 \
+    -p 9988:9987/udp -p 30034:30033 \
+    teamspeak6-server:latest
+  ```
+  
+  Each instance needs separate data volumes and port mappings.
+</Accordion>
+
+## Configuration
+
+<Accordion title="What are the three ways to configure the server?">
+  1. **Command-Line Arguments** - For temporary changes or scripting:
+     ```bash
+     ./tsserver --default-voice-port 9987
+     ```
+  
+  2. **Environment Variables** - Useful for Docker:
+     ```bash
+     export TSSERVER_DEFAULT_VOICE_PORT=9987
+     ```
+  
+  3. **YAML Configuration File** - Recommended for persistent configuration:
+     ```bash
+     # Generate default config
+     ./tsserver --write-config-file
+     ```
+  
+  Command-line arguments override environment variables, which override the config file.
+</Accordion>
+
+<Accordion title="Where should I store my configuration file?">
+  **Default location:** `tsserver.yaml` in the same directory as the server binary
+  
+  **Custom location:**
+  ```bash
+  ./tsserver --config-file /path/to/custom-config.yaml
+  ```
+  
+  **For Docker:**
+  Mount your config file as a volume:
+  ```yaml
+  volumes:
+    - ./tsserver.yaml:/var/tsserver/tsserver.yaml
+  ```
+</Accordion>
+
+<Accordion title="How do I change the voice port?">
+  **Command-line:**
+  ```bash
+  ./tsserver --default-voice-port 9988
+  ```
+  
+  **Environment variable:**
+  ```bash
+  export TSSERVER_DEFAULT_VOICE_PORT=9988
+  ```
+  
+  **Docker:**
+  ```bash
+  docker run -d \
+    -p 9988:9988/udp \
+    -e TSSERVER_DEFAULT_VOICE_PORT=9988 \
+    teamspeak6-server:latest
+  ```
+  
+  Don't forget to update your port forwarding and firewall rules.
+</Accordion>
+
+<Accordion title="What ports need to be open?">
+  **Required ports:**
+  - **9987/UDP** - Voice communication (can be customized)
+  - **30033/TCP** - File transfer (can be customized)
+  
+  **Optional ports:**
+  - **10080/TCP** - Web Query API
+  
+  See [Ports & Networking](/configuration/ports-networking) for details.
+</Accordion>
+
+## Operations
+
+<Accordion title="How do I backup my server?">
+  **What to backup:**
+  - Database file (SQLite) or database dump (MariaDB)
+  - Server configuration files
+  - File transfer storage directory
+  
+  **Docker volume backup:**
+  ```bash
+  # Create backup
+  docker run --rm \
+    -v teamspeak-data:/data \
+    -v $(pwd):/backup \
+    alpine tar czf /backup/teamspeak-backup.tar.gz /data
+  ```
+  
+  See [Backup & Restore](/operations/backup-restore) for comprehensive backup strategies.
+</Accordion>
+
+<Accordion title="How do I update the server?">
+  **Docker (recommended):**
+  ```bash
+  docker pull teamspeaksystems/teamspeak6-server:latest
+  docker stop teamspeak-server
+  docker rm teamspeak-server
+  docker run -d --name teamspeak-server \
+    -v teamspeak-data:/var/tsserver \
+    teamspeaksystems/teamspeak6-server:latest
+  ```
+  
+  Your data persists in the volume.
+  
+  **Binary installation:**
+  1. Download the new version
+  2. Stop the server
+  3. Replace the binary
+  4. Start the server with the same configuration
+  
+  See [Updates](/operations/updates) for detailed instructions.
+</Accordion>
+
+<Accordion title="How do I view server logs?">
+  **Docker:**
+  ```bash
+  # View logs
+  docker logs teamspeak-server
+  
+  # Follow logs in real-time
+  docker logs -f teamspeak-server
+  
+  # View last 100 lines
+  docker logs --tail 100 teamspeak-server
+  ```
+  
+  **Binary installation:**
+  Logs are written to the console by default. You can redirect to a file:
+  ```bash
+  ./tsserver > server.log 2>&1
+  ```
+  
+  See [Logging](/operations/logging) for log configuration options.
+</Accordion>
+
+<Accordion title="Can I import data from TeamSpeak 3?">
+  No, there is currently **no migration path** from TeamSpeak 3 to TeamSpeak 6.
+  
+  - TeamSpeak 3 Server licenses are not compatible with TeamSpeak 6
+  - Database schemas are different
+  - You must set up a new TeamSpeak 6 server
+  
+  See [Beta Information](/resources/beta-information) for current limitations.
+</Accordion>
+
+## Licensing
+
+<Accordion title="What license does the beta server include?">
+  The TeamSpeak 6 Server beta includes a **32-slot license** that is automatically renewed every two months throughout the beta period.
+  
+  - No manual renewal required
+  - Valid during beta/evaluation phase
+  - Cannot be upgraded to a larger license yet
+  
+  See [Licensing](/resources/licensing) for more details.
+</Accordion>
+
+<Accordion title="Can I get a larger license for TeamSpeak 6?">
+  Not currently. During the beta period:
+  
+  - All servers are limited to the 32-slot beta license
+  - License upgrades are not yet available
+  - Licensing and pricing will be finalized before stable release
+  
+  If you need more slots, you can rent official servers at [myteamspeak.com/communities](https://www.myteamspeak.com/communities).
+</Accordion>
+
+## Troubleshooting
+
+<Accordion title="Why can't clients connect to my server?">
+  Common causes:
+  
+  1. **Firewall blocking connections**
+     - Open port 9987/UDP for voice
+     - Open port 30033/TCP for file transfer
+  
+  2. **Port forwarding not configured**
+     - Forward ports on your router to the server
+  
+  3. **Wrong IP address**
+     - Use your public IP for external connections
+     - Use `0.0.0.0` for server binding to accept all connections
+  
+  4. **Server not running**
+     - Check with `docker ps` or process manager
+  
+  See [Troubleshooting](/resources/troubleshooting) for detailed solutions.
+</Accordion>
+
+<Accordion title="My server is using too much CPU/memory. What should I do?">
+  **Reduce logging verbosity:**
+  Verbose logging increases resource usage. Use standard log levels for production.
+  
+  **Check connection count:**
+  Ensure you're not exceeding your intended capacity.
+  
+  **Use MariaDB for large deployments:**
+  SQLite is simpler but MariaDB performs better with many concurrent users.
+  
+  **Monitor for attacks:**
+  Check logs for unusual connection patterns.
+  
+  See [Performance Tuning](/advanced/performance-tuning) for optimization tips.
+</Accordion>
+
+<Accordion title="Where can I get help?">
+  **Community Forum:**
+  [community.teamspeak.com/c/teamspeak-6-server/45](https://community.teamspeak.com/c/teamspeak-6-server/45)
+  
+  **GitHub Issues:**
+  [github.com/teamspeak/teamspeak6-server/issues](https://github.com/teamspeak/teamspeak6-server/issues)
+  
+  **Official Documentation:**
+  This documentation site and the CONFIG.md file included with the server
+  
+  When asking for help, provide:
+  - Server version and platform
+  - Relevant log excerpts
+  - Configuration details (redact sensitive info)
+  - Steps to reproduce the issue
+</Accordion>

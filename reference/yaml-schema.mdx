@@ -1,0 +1,1021 @@
+---
+title: YAML Configuration Schema
+description: Complete reference for the tsserver.yaml configuration file structure
+---
+
+This page provides a comprehensive reference for the TeamSpeak 6 Server YAML configuration file (`tsserver.yaml`). The YAML format provides a structured and readable way to configure all server settings in one place.
+
+## Overview
+
+The `tsserver.yaml` file allows you to configure all server settings in a structured format. This approach offers several advantages:
+
+- **Organization**: Group related settings together logically
+- **Version Control**: Easy to track changes in git
+- **Documentation**: Comments can be added to explain settings
+- **Simplicity**: No need for long command-line arguments
+
+<Note>
+Command-line flags take precedence over YAML configuration, which takes precedence over environment variables.
+</Note>
+
+## Using the Configuration File
+
+To use a YAML configuration file:
+
+```bash
+./tsserver --config-file tsserver.yaml
+```
+
+Or with an environment variable:
+
+```bash
+export TSSERVER_CONFIG_FILE=tsserver.yaml
+./tsserver
+```
+
+## Complete Schema Example
+
+Below is the complete YAML schema with all available options:
+
+```yaml
+server:
+  # General Configuration
+  license-path: .
+  accept-license: accept
+  
+  # Voice Server Configuration
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  threads-voice-udp: 5
+  
+  # Machine Identification
+  machine-id: ""
+  
+  # Virtual Server
+  no-default-virtual-server: 0
+  
+  # Logging
+  log-path: logs
+  log-append: 0
+  
+  # File Transfer
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  
+  # Database Maintenance
+  clear-database: 0
+  no-permission-update: 0
+  
+  # Network
+  http-proxy: ""
+  
+  # Crash Handling
+  crashdump-path: crashdumps
+  
+  # Database Configuration
+  database:
+    plugin: sqlite3
+    sql-path: /opt/tsserver/sql/
+    sql-create-path: /opt/tsserver/sql/create_sqlite/
+    client-keep-days: 30
+    
+    config:
+      skip-integrity-check: 0
+      host: 127.0.0.1
+      port: 5432
+      socket: ""
+      timeout: 10
+      name: teamspeak
+      username: ""
+      password: ""
+      connections: 10
+      log-queries: 0
+  
+  # Query Configuration
+  query:
+    pool-size: 2
+    log-timing: 3600
+    ip-allow-list: query_ip_allowlist.txt
+    ip-block-list: query_ip_denylist.txt
+    admin-password: ""
+    log-commands: 0
+    skip-brute-force-check: 0
+    buffer-mb: 20
+    documentation-path: serverquerydocs
+    timeout: 300
+    
+    # SSH Query
+    ssh:
+      enable: 0
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: ssh_host_rsa_key
+    
+    # HTTP Query
+    http:
+      enable: 0
+      port: 10080
+      ip:
+        - 0.0.0.0
+        - "::"
+    
+    # HTTPS Query
+    https:
+      enable: 0
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: ""
+      private-key: ""
+```
+
+## Schema Reference
+
+### Root Level
+
+All configuration is nested under the `server` key:
+
+```yaml
+server:
+  # All configuration goes here
+```
+
+## General Configuration
+
+<Accordion title="General Settings">
+
+<ParamField path="license-path" type="string" default=".">
+  Directory path where the server will look for the `licensekey.dat` file.
+  
+  ```yaml
+  license-path: /opt/teamspeak/licenses
+  ```
+</ParamField>
+
+<ParamField path="accept-license" type="string">
+  Confirms you have read and accepted the server license agreement.
+  
+  **Accepted values:** `accept`, `1`, `true`
+  
+  ```yaml
+  accept-license: accept
+  ```
+</ParamField>
+
+<ParamField path="machine-id" type="string">
+  A string to distinguish this instance from other instances using the same database.
+  
+  ```yaml
+  machine-id: "server-01"
+  ```
+</ParamField>
+
+<ParamField path="no-default-virtual-server" type="integer" default="0">
+  If set to 1, no default server is created even if no server exists in the database.
+  
+  ```yaml
+  no-default-virtual-server: 0
+  ```
+</ParamField>
+
+<ParamField path="no-permission-update" type="integer" default="0">
+  If set to 1, do not apply permission changes during server updates.
+  
+  ```yaml
+  no-permission-update: 0
+  ```
+</ParamField>
+
+<ParamField path="clear-database" type="integer" default="0">
+  ⚠️ **WARNING:** If set to 1, resets the database completely (deletes all servers, clients, etc.).
+  
+  ```yaml
+  clear-database: 0
+  ```
+</ParamField>
+
+</Accordion>
+
+## Voice Server
+
+<Accordion title="Voice Configuration">
+
+<ParamField path="default-voice-port" type="integer" default="9987">
+  Permanently sets the default UDP voice port for the first virtual server created.
+  
+  **Range:** 1 - 65535
+  
+  ```yaml
+  default-voice-port: 9987
+  ```
+</ParamField>
+
+<ParamField path="voice-ip" type="array">
+  IP addresses for the server to bind the voice port to. Supports multiple entries.
+  
+  ```yaml
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+    - 192.168.1.100
+  ```
+</ParamField>
+
+<ParamField path="threads-voice-udp" type="integer" default="5">
+  Number of threads to use for voice processing.
+  
+  **Range:** 1 - 16
+  
+  ```yaml
+  threads-voice-udp: 5
+  ```
+</ParamField>
+
+</Accordion>
+
+## Logging
+
+<Accordion title="Log Settings">
+
+<ParamField path="log-path" type="string" default="logs">
+  Path to the directory where log files are stored.
+  
+  ```yaml
+  log-path: /var/log/teamspeak
+  ```
+</ParamField>
+
+<ParamField path="log-append" type="integer" default="0">
+  If set to 1, write one ever-growing log file per virtual server.
+  
+  ```yaml
+  log-append: 0
+  ```
+</ParamField>
+
+</Accordion>
+
+## File Transfer
+
+<Accordion title="File Transfer Configuration">
+
+<ParamField path="filetransfer-port" type="integer" default="30033">
+  Port on which to listen and advertise for file transfer connections.
+  
+  **Range:** 1 - 65535
+  
+  ```yaml
+  filetransfer-port: 30033
+  ```
+  
+  <Warning>
+  **Docker Note:** Internal container port must match the external host port for file transfers to work correctly.
+  </Warning>
+</ParamField>
+
+<ParamField path="filetransfer-ip" type="array">
+  The addresses on which to listen for file transfer connections.
+  
+  ```yaml
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  ```
+</ParamField>
+
+</Accordion>
+
+## Network
+
+<Accordion title="Network Settings">
+
+<ParamField path="http-proxy" type="string">
+  Proxy server used for external connections.
+  
+  ```yaml
+  http-proxy: "http://proxy.example.com:8080"
+  ```
+</ParamField>
+
+</Accordion>
+
+## Crash Handling
+
+<Accordion title="Crash Dump Settings">
+
+<ParamField path="crashdump-path" type="string" default="crashdumps">
+  Path where crash dumps should be written.
+  
+  ```yaml
+  crashdump-path: /var/crash/teamspeak
+  ```
+</ParamField>
+
+</Accordion>
+
+## Database Configuration
+
+All database settings are nested under `server.database`:
+
+<Accordion title="Database Settings">
+
+<ParamField path="database.plugin" type="string" default="sqlite3">
+  Specifies the database plugin to use.
+  
+  **Accepted values:** `sqlite3`, `mariadb`, `postgresql`
+  
+  ```yaml
+  database:
+    plugin: sqlite3
+  ```
+</ParamField>
+
+<ParamField path="database.sql-path" type="string" default="sql">
+  Path to folder containing SQL queries used by the server.
+  
+  ```yaml
+  database:
+    sql-path: /opt/tsserver/sql/
+  ```
+</ParamField>
+
+<ParamField path="database.sql-create-path" type="string" default="create_sqlite">
+  Subdirectory in SQL path to use for DB creation scripts.
+  
+  ```yaml
+  database:
+    sql-create-path: /opt/tsserver/sql/create_mariadb/
+  ```
+</ParamField>
+
+<ParamField path="database.client-keep-days" type="integer" default="30">
+  Number of days to keep clients in the database.
+  
+  ```yaml
+  database:
+    client-keep-days: 90
+  ```
+</ParamField>
+
+</Accordion>
+
+### Database Connection
+
+Connection settings are nested under `server.database.config`:
+
+<Accordion title="Database Connection Settings">
+
+<ParamField path="database.config.skip-integrity-check" type="integer" default="0">
+  SQLite only: if set to 1, skip DB integrity check at startup.
+  
+  ```yaml
+  database:
+    config:
+      skip-integrity-check: 0
+  ```
+</ParamField>
+
+<ParamField path="database.config.host" type="string" default="127.0.0.1">
+  Database hostname or IP address.
+  
+  ```yaml
+  database:
+    config:
+      host: db.example.com
+  ```
+</ParamField>
+
+<ParamField path="database.config.port" type="integer" default="5432">
+  Database port.
+  
+  **Range:** 1 - 65535
+  
+  ```yaml
+  database:
+    config:
+      port: 3306  # MariaDB/MySQL
+  ```
+</ParamField>
+
+<ParamField path="database.config.socket" type="string">
+  Socket file to use for database connection.
+  
+  ```yaml
+  database:
+    config:
+      socket: /var/run/mysqld/mysqld.sock
+  ```
+</ParamField>
+
+<ParamField path="database.config.timeout" type="integer" default="10">
+  Timeout in seconds when connecting to the database.
+  
+  **Range:** 1 - 432000
+  
+  ```yaml
+  database:
+    config:
+      timeout: 30
+  ```
+</ParamField>
+
+<ParamField path="database.config.name" type="string" default="teamspeak">
+  Name of the database to use.
+  
+  ```yaml
+  database:
+    config:
+      name: ts6server
+  ```
+</ParamField>
+
+<ParamField path="database.config.username" type="string">
+  The username to use for database authentication.
+  
+  ```yaml
+  database:
+    config:
+      username: tsserver
+  ```
+</ParamField>
+
+<ParamField path="database.config.password" type="string">
+  The password to use for database authentication.
+  
+  ```yaml
+  database:
+    config:
+      password: secure_password
+  ```
+  
+  <Tip>
+  Consider using environment variable substitution or secrets management for passwords in production.
+  </Tip>
+</ParamField>
+
+<ParamField path="database.config.connections" type="integer" default="10">
+  Number of connections to establish to the database.
+  
+  **Range:** 2 - 100
+  
+  ```yaml
+  database:
+    config:
+      connections: 20
+  ```
+</ParamField>
+
+<ParamField path="database.config.log-queries" type="integer" default="0">
+  If set to 1, enable logging of SQL queries.
+  
+  ```yaml
+  database:
+    config:
+      log-queries: 0
+  ```
+</ParamField>
+
+</Accordion>
+
+## Query Interface
+
+All query settings are nested under `server.query`:
+
+<Accordion title="General Query Settings">
+
+<ParamField path="query.pool-size" type="integer" default="2">
+  How many threads to use for query command processing.
+  
+  **Range:** 2 - 32
+  
+  ```yaml
+  query:
+    pool-size: 4
+  ```
+</ParamField>
+
+<ParamField path="query.log-timing" type="integer" default="3600">
+  Interval in seconds after which to log query statistics.
+  
+  **Range:** 10 - 31556952
+  
+  ```yaml
+  query:
+    log-timing: 1800
+  ```
+</ParamField>
+
+<ParamField path="query.ip-allow-list" type="string" default="query_ip_allowlist.txt">
+  File path listing IPs exempt from query flood protection.
+  
+  ```yaml
+  query:
+    ip-allow-list: /etc/teamspeak/allowlist.txt
+  ```
+</ParamField>
+
+<ParamField path="query.ip-block-list" type="string" default="query_ip_denylist.txt">
+  File path listing IPs blocked from the query interface.
+  
+  ```yaml
+  query:
+    ip-block-list: /etc/teamspeak/blocklist.txt
+  ```
+</ParamField>
+
+<ParamField path="query.admin-password" type="string">
+  Override the query password for the built-in serveradmin account.
+  
+  ```yaml
+  query:
+    admin-password: "strong_admin_password"
+  ```
+</ParamField>
+
+<ParamField path="query.log-commands" type="integer" default="0">
+  If set to 1, log every command received on the query interface.
+  
+  ```yaml
+  query:
+    log-commands: 0
+  ```
+</ParamField>
+
+<ParamField path="query.skip-brute-force-check" type="integer" default="0">
+  If set to 1, skip brute force checking on query interface connections.
+  
+  ```yaml
+  query:
+    skip-brute-force-check: 0
+  ```
+</ParamField>
+
+<ParamField path="query.buffer-mb" type="integer" default="20">
+  How much memory (in MB) to allocate for query connection buffering.
+  
+  **Range:** 20 - 100
+  
+  ```yaml
+  query:
+    buffer-mb: 50
+  ```
+</ParamField>
+
+<ParamField path="query.documentation-path" type="string" default="serverquerydocs">
+  Path to the query documentation files.
+  
+  ```yaml
+  query:
+    documentation-path: /opt/tsserver/docs
+  ```
+</ParamField>
+
+<ParamField path="query.timeout" type="integer" default="300">
+  Timeout in seconds before query connections expire.
+  
+  ```yaml
+  query:
+    timeout: 600
+  ```
+</ParamField>
+
+</Accordion>
+
+### SSH Query
+
+SSH query settings are nested under `server.query.ssh`:
+
+<Accordion title="SSH Query Settings">
+
+<ParamField path="query.ssh.enable" type="integer" default="0">
+  If set to 1, enable the SSH query interface.
+  
+  ```yaml
+  query:
+    ssh:
+      enable: 1
+  ```
+</ParamField>
+
+<ParamField path="query.ssh.port" type="integer" default="10022">
+  Port on which to listen for SSH query connections.
+  
+  **Range:** 1 - 65535
+  
+  ```yaml
+  query:
+    ssh:
+      port: 10022
+  ```
+</ParamField>
+
+<ParamField path="query.ssh.ip" type="array">
+  Addresses to listen on for SSH query connections.
+  
+  ```yaml
+  query:
+    ssh:
+      ip:
+        - 0.0.0.0
+        - "::"
+  ```
+</ParamField>
+
+<ParamField path="query.ssh.rsa-key" type="string" default="ssh_host_rsa_key">
+  Path to the SSH RSA host key file.
+  
+  ```yaml
+  query:
+    ssh:
+      rsa-key: /etc/teamspeak/ssh_host_rsa_key
+  ```
+</ParamField>
+
+</Accordion>
+
+### HTTP Query
+
+HTTP query settings are nested under `server.query.http`:
+
+<Accordion title="HTTP Query Settings">
+
+<ParamField path="query.http.enable" type="integer" default="0">
+  If set to 1, enable the HTTP query interface.
+  
+  ```yaml
+  query:
+    http:
+      enable: 1
+  ```
+</ParamField>
+
+<ParamField path="query.http.port" type="integer" default="10080">
+  Port on which to listen for Web Query connections.
+  
+  **Range:** 1 - 65535
+  
+  ```yaml
+  query:
+    http:
+      port: 10080
+  ```
+</ParamField>
+
+<ParamField path="query.http.ip" type="array">
+  Addresses to listen on for Web Query connections.
+  
+  ```yaml
+  query:
+    http:
+      ip:
+        - 0.0.0.0
+        - "::"
+  ```
+</ParamField>
+
+</Accordion>
+
+### HTTPS Query
+
+HTTPS query settings are nested under `server.query.https`:
+
+<Accordion title="HTTPS Query Settings">
+
+<ParamField path="query.https.enable" type="integer" default="0">
+  If set to 1, enable the HTTPS query interface.
+  
+  ```yaml
+  query:
+    https:
+      enable: 1
+  ```
+</ParamField>
+
+<ParamField path="query.https.port" type="integer" default="10443">
+  Port on which to listen for secure Web Query connections.
+  
+  **Range:** 1 - 65535
+  
+  ```yaml
+  query:
+    https:
+      port: 10443
+  ```
+</ParamField>
+
+<ParamField path="query.https.ip" type="array">
+  Addresses to listen on for secure Web Query connections.
+  
+  ```yaml
+  query:
+    https:
+      ip:
+        - 0.0.0.0
+        - "::"
+  ```
+</ParamField>
+
+<ParamField path="query.https.certificate" type="string">
+  Path to certificate file for HTTPS Web Query.
+  
+  ```yaml
+  query:
+    https:
+      certificate: /etc/teamspeak/ssl/cert.pem
+  ```
+</ParamField>
+
+<ParamField path="query.https.private-key" type="string">
+  Path to private key file used with the certificate.
+  
+  ```yaml
+  query:
+    https:
+      private-key: /etc/teamspeak/ssl/key.pem
+  ```
+</ParamField>
+
+</Accordion>
+
+## Configuration Examples
+
+### SQLite (Default)
+
+<Accordion title="SQLite Configuration">
+
+```yaml
+server:
+  license-path: .
+  accept-license: accept
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  log-path: logs
+  
+  database:
+    plugin: sqlite3
+    sql-path: sql
+    sql-create-path: sql/create_sqlite
+    client-keep-days: 30
+    config:
+      skip-integrity-check: 0
+  
+  query:
+    ssh:
+      enable: 1
+      port: 10022
+    http:
+      enable: 1
+      port: 10080
+```
+
+</Accordion>
+
+### MariaDB/MySQL
+
+<Accordion title="MariaDB Configuration">
+
+```yaml
+server:
+  license-path: /opt/teamspeak/licenses
+  accept-license: accept
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  filetransfer-port: 30033
+  log-path: /var/log/teamspeak
+  
+  database:
+    plugin: mariadb
+    sql-path: /opt/tsserver/sql
+    sql-create-path: /opt/tsserver/sql/create_mariadb
+    client-keep-days: 90
+    config:
+      host: db.example.com
+      port: 3306
+      name: teamspeak
+      username: tsserver
+      password: secure_db_password
+      connections: 20
+      timeout: 30
+  
+  query:
+    pool-size: 4
+    admin-password: admin_password
+    ssh:
+      enable: 1
+      port: 10022
+    https:
+      enable: 1
+      port: 10443
+      certificate: /etc/ssl/certs/teamspeak.crt
+      private-key: /etc/ssl/private/teamspeak.key
+```
+
+</Accordion>
+
+### PostgreSQL
+
+<Accordion title="PostgreSQL Configuration">
+
+```yaml
+server:
+  license-path: /opt/teamspeak/licenses
+  accept-license: accept
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  machine-id: ts-prod-01
+  filetransfer-port: 30033
+  threads-voice-udp: 8
+  log-path: /var/log/teamspeak
+  
+  database:
+    plugin: postgresql
+    sql-path: /opt/tsserver/sql
+    sql-create-path: /opt/tsserver/sql/create_postgresql
+    client-keep-days: 180
+    config:
+      host: postgres.example.com
+      port: 5432
+      name: teamspeak
+      username: tsserver
+      password: secure_db_password
+      connections: 25
+      timeout: 30
+      log-queries: 0
+  
+  query:
+    pool-size: 8
+    buffer-mb: 50
+    admin-password: admin_password
+    log-commands: 0
+    ssh:
+      enable: 1
+      port: 10022
+      rsa-key: /etc/teamspeak/ssh_host_rsa_key
+    http:
+      enable: 1
+      port: 10080
+    https:
+      enable: 1
+      port: 10443
+      certificate: /etc/ssl/certs/teamspeak.crt
+      private-key: /etc/ssl/private/teamspeak.key
+```
+
+</Accordion>
+
+### Production Deployment
+
+<Accordion title="Production Configuration">
+
+```yaml
+server:
+  license-path: /opt/teamspeak/licenses
+  accept-license: accept
+  
+  # Network Configuration
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  
+  # Performance Tuning
+  threads-voice-udp: 8
+  machine-id: ts-prod-primary
+  
+  # Logging
+  log-path: /var/log/teamspeak
+  log-append: 0
+  crashdump-path: /var/crash/teamspeak
+  
+  # Database - MariaDB
+  database:
+    plugin: mariadb
+    sql-path: /opt/tsserver/sql
+    sql-create-path: /opt/tsserver/sql/create_mariadb
+    client-keep-days: 90
+    config:
+      host: db-primary.example.com
+      port: 3306
+      name: teamspeak_prod
+      username: tsserver
+      password: "${DB_PASSWORD}"  # Use environment variable
+      connections: 30
+      timeout: 30
+      log-queries: 0
+  
+  # Query Interface
+  query:
+    pool-size: 8
+    buffer-mb: 50
+    log-timing: 3600
+    ip-allow-list: /etc/teamspeak/query_allowlist.txt
+    ip-block-list: /etc/teamspeak/query_blocklist.txt
+    admin-password: "${QUERY_ADMIN_PASSWORD}"  # Use environment variable
+    log-commands: 0
+    skip-brute-force-check: 0
+    timeout: 600
+    
+    # SSH Query - Enabled
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: /etc/teamspeak/ssh_host_rsa_key
+    
+    # HTTP Query - Disabled (use HTTPS)
+    http:
+      enable: 0
+    
+    # HTTPS Query - Enabled
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: /etc/ssl/certs/teamspeak.crt
+      private-key: /etc/ssl/private/teamspeak.key
+```
+
+</Accordion>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Security">
+    - Use environment variables for sensitive data like passwords
+    - Enable HTTPS for query interfaces in production
+    - Set up IP allow/block lists for query interfaces
+    - Use strong admin passwords
+    - Keep the license file secure with proper file permissions
+    - Disable HTTP query in production (use HTTPS instead)
+  </Accordion>
+  
+  <Accordion title="Performance">
+    - Adjust `threads-voice-udp` based on your CPU cores (typically 1 per 2 cores)
+    - Increase `database.config.connections` for high-traffic servers
+    - Use MariaDB or PostgreSQL instead of SQLite for production
+    - Adjust `query.pool-size` based on expected query load
+    - Monitor and adjust `query.buffer-mb` if needed
+  </Accordion>
+  
+  <Accordion title="Maintenance">
+    - Set appropriate `database.client-keep-days` based on your retention policy
+    - Configure `log-path` to a location with adequate disk space
+    - Regular backups of the database and configuration files
+    - Use `machine-id` to identify instances in multi-server setups
+    - Keep crashdump-path on a partition with sufficient space
+  </Accordion>
+  
+  <Accordion title="High Availability">
+    - Use external database (MariaDB/PostgreSQL) for clustering
+    - Set unique `machine-id` for each instance
+    - Share database across instances
+    - Use load balancers for query interfaces
+    - Implement database replication for redundancy
+  </Accordion>
+</AccordionGroup>
+
+## Validation
+
+To validate your configuration file without starting the server:
+
+```bash
+./tsserver --config-file tsserver.yaml --write-config-file
+```
+
+This will load the configuration and write it back, helping identify any syntax errors.
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="CLI Options" icon="terminal" href="/reference/cli-options">
+    Complete list of command-line options
+  </Card>
+  <Card title="Environment Variables" icon="leaf" href="/reference/environment-variables">
+    Complete list of environment variables
+  </Card>
+</CardGroup>

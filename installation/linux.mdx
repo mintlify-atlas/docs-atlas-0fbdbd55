@@ -1,0 +1,538 @@
+---
+title: Linux Installation
+description: Install and run TeamSpeak 6 Server natively on Linux
+---
+
+This guide covers installing and running TeamSpeak 6 Server directly on Linux systems without Docker. This method provides maximum control and performance for dedicated server deployments.
+
+## System Requirements
+
+- **Operating System:** Linux (64-bit)
+  - Ubuntu 20.04 LTS or later
+  - Debian 11 or later
+  - CentOS 8 / Rocky Linux 8 or later
+  - Other modern Linux distributions
+- **Architecture:** x86_64 (AMD64)
+- **RAM:** Minimum 512 MB (1 GB+ recommended)
+- **Disk Space:** 100 MB for server files + space for database and logs
+- **Network:** Open ports 9987/UDP and 30033/TCP
+
+## Installation
+
+<Steps>
+  <Step title="Download the server package">
+    Download the latest TeamSpeak 6 Server for Linux from the official website:
+
+    ```bash
+    # Create a directory for TeamSpeak
+    mkdir -p ~/teamspeak6-server
+    cd ~/teamspeak6-server
+
+    # Download the latest version (replace URL with actual download link)
+    wget https://files.teamspeak-services.com/releases/server/6.x.x/teamspeak6-server-linux_amd64-x.x.x.tar.gz
+    ```
+
+    <Note>
+      Visit the [TeamSpeak Downloads](https://teamspeak.com/en/downloads/) page to get the latest version URL.
+    </Note>
+  </Step>
+
+  <Step title="Extract the archive">
+    Extract the downloaded archive:
+
+    ```bash
+    tar -xzf teamspeak6-server-linux_amd64-*.tar.gz
+    cd teamspeak6-server-linux_amd64
+    ```
+
+    List the extracted files:
+
+    ```bash
+    ls -la
+    ```
+
+    You should see files including `tsserver`, `LICENSE`, and various directories.
+  </Step>
+
+  <Step title="Make the server binary executable">
+    Ensure the server binary has execute permissions:
+
+    ```bash
+    chmod +x tsserver
+    ```
+
+    Verify the server version:
+
+    ```bash
+    ./tsserver --version
+    ```
+  </Step>
+
+  <Step title="Start the server">
+    Run the server for the first time, accepting the license:
+
+    ```bash
+    ./tsserver --accept-license
+    ```
+
+    <Info>
+      The server will start in the foreground and display log output. You should see the ServerAdmin privilege key in the output - **save this key immediately**!
+    </Info>
+
+    <Warning>
+      The ServerAdmin privilege key is only displayed during the first startup. Make sure to copy and save it securely.
+    </Warning>
+  </Step>
+
+  <Step title="Test the connection">
+    With the server running, test the connection:
+
+    1. Download the [TeamSpeak 6 Client](https://teamspeak.com/en/downloads/)
+    2. Connect to `localhost:9987` (or your server's IP)
+    3. Use the ServerAdmin privilege key to gain admin access
+  </Step>
+</Steps>
+
+## Running as a Background Service
+
+For production use, you should run the server as a systemd service.
+
+<Steps>
+  <Step title="Create a dedicated user">
+    Create a system user for running the TeamSpeak server:
+
+    ```bash
+    sudo useradd -r -m -d /opt/teamspeak6 -s /bin/bash teamspeak
+    ```
+
+    <Note>
+      The `-r` flag creates a system user, `-m` creates a home directory, and `-d` specifies the directory location.
+    </Note>
+  </Step>
+
+  <Step title="Move server files">
+    Move the server files to the dedicated directory:
+
+    ```bash
+    sudo mv ~/teamspeak6-server/teamspeak6-server-linux_amd64/* /opt/teamspeak6/
+    sudo chown -R teamspeak:teamspeak /opt/teamspeak6
+    ```
+  </Step>
+
+  <Step title="Create a systemd service file">
+    Create a systemd service file:
+
+    ```bash
+    sudo nano /etc/systemd/system/teamspeak6.service
+    ```
+
+    Add the following content:
+
+    ```ini /etc/systemd/system/teamspeak6.service
+    [Unit]
+    Description=TeamSpeak 6 Server
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=teamspeak
+    Group=teamspeak
+    WorkingDirectory=/opt/teamspeak6
+    ExecStart=/opt/teamspeak6/tsserver --accept-license
+    Restart=on-failure
+    RestartSec=10
+    StandardOutput=journal
+    StandardError=journal
+
+    # Security settings
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectSystem=strict
+    ProtectHome=true
+    ReadWritePaths=/opt/teamspeak6
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+    Save and close the file (Ctrl+X, then Y, then Enter).
+
+    <Tip>
+      These security settings provide additional protection by restricting what the server process can access.
+    </Tip>
+  </Step>
+
+  <Step title="Enable and start the service">
+    Reload systemd, enable the service to start on boot, and start it:
+
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable teamspeak6
+    sudo systemctl start teamspeak6
+    ```
+
+    Check the service status:
+
+    ```bash
+    sudo systemctl status teamspeak6
+    ```
+
+    The status should show "active (running)".
+  </Step>
+
+  <Step title="Retrieve the ServerAdmin key">
+    If this is the first startup, get the ServerAdmin privilege key from the logs:
+
+    ```bash
+    sudo journalctl -u teamspeak6 -n 100 --no-pager | grep -i "serveradmin\|privilege"
+    ```
+
+    Save this key securely.
+  </Step>
+</Steps>
+
+## Service Management
+
+Use these commands to manage your TeamSpeak 6 Server service:
+
+<CodeGroup>
+  ```bash Start
+  sudo systemctl start teamspeak6
+  ```
+
+  ```bash Stop
+  sudo systemctl stop teamspeak6
+  ```
+
+  ```bash Restart
+  sudo systemctl restart teamspeak6
+  ```
+
+  ```bash Status
+  sudo systemctl status teamspeak6
+  ```
+
+  ```bash View Logs
+  sudo journalctl -u teamspeak6 -f
+  ```
+
+  ```bash Enable Auto-start
+  sudo systemctl enable teamspeak6
+  ```
+
+  ```bash Disable Auto-start
+  sudo systemctl disable teamspeak6
+  ```
+</CodeGroup>
+
+## Firewall Configuration
+
+You need to open the required ports in your firewall:
+
+<Tabs>
+  <Tab title="UFW (Ubuntu/Debian)">
+    ```bash
+    # Allow TeamSpeak voice port (UDP)
+    sudo ufw allow 9987/udp
+
+    # Allow file transfer port (TCP)
+    sudo ufw allow 30033/tcp
+
+    # Optional: WebQuery port
+    # sudo ufw allow 10080/tcp
+
+    # Optional: SSH Query port
+    # sudo ufw allow 10022/tcp
+
+    # Enable the firewall if not already enabled
+    sudo ufw enable
+
+    # Check status
+    sudo ufw status
+    ```
+  </Tab>
+
+  <Tab title="firewalld (CentOS/RHEL/Rocky)">
+    ```bash
+    # Allow TeamSpeak voice port (UDP)
+    sudo firewall-cmd --permanent --add-port=9987/udp
+
+    # Allow file transfer port (TCP)
+    sudo firewall-cmd --permanent --add-port=30033/tcp
+
+    # Optional: WebQuery port
+    # sudo firewall-cmd --permanent --add-port=10080/tcp
+
+    # Optional: SSH Query port
+    # sudo firewall-cmd --permanent --add-port=10022/tcp
+
+    # Reload firewall
+    sudo firewall-cmd --reload
+
+    # Check status
+    sudo firewall-cmd --list-all
+    ```
+  </Tab>
+
+  <Tab title="iptables">
+    ```bash
+    # Allow TeamSpeak voice port (UDP)
+    sudo iptables -A INPUT -p udp --dport 9987 -j ACCEPT
+
+    # Allow file transfer port (TCP)
+    sudo iptables -A INPUT -p tcp --dport 30033 -j ACCEPT
+
+    # Optional: WebQuery port
+    # sudo iptables -A INPUT -p tcp --dport 10080 -j ACCEPT
+
+    # Optional: SSH Query port
+    # sudo iptables -A INPUT -p tcp --dport 10022 -j ACCEPT
+
+    # Save rules (Ubuntu/Debian)
+    sudo netfilter-persistent save
+
+    # Save rules (CentOS/RHEL)
+    # sudo service iptables save
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration
+
+You can configure the server using command-line arguments, environment variables, or a configuration file.
+
+### Using Command-Line Arguments
+
+Modify the `ExecStart` line in the systemd service file:
+
+```ini
+ExecStart=/opt/teamspeak6/tsserver --accept-license --default-voice-port 9987 --filetransfer-port 30033
+```
+
+### Using a Configuration File
+
+Generate a default configuration file:
+
+```bash
+cd /opt/teamspeak6
+sudo -u teamspeak ./tsserver --write-config-file
+```
+
+This creates a `tsserver.yaml` file. Edit it:
+
+```bash
+sudo nano /opt/teamspeak6/tsserver.yaml
+```
+
+Example configuration:
+
+```yaml tsserver.yaml
+server:
+  accept-license: accept
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  log-path: logs
+  
+  database:
+    plugin: sqlite3
+    sql-path: sql/
+    sql-create-path: sql/create_sqlite/
+    client-keep-days: 30
+
+  query:
+    http:
+      enable: false
+      port: 10080
+    ssh:
+      enable: false
+      port: 10022
+```
+
+After editing, restart the service:
+
+```bash
+sudo systemctl restart teamspeak6
+```
+
+<Tip>
+  For a complete list of configuration options, see the [Configuration](/configuration/overview) documentation.
+</Tip>
+
+## Verification Steps
+
+<Steps>
+  <Step title="Check server process">
+    Verify the server process is running:
+
+    ```bash
+    ps aux | grep tsserver
+    ```
+
+    You should see the `tsserver` process running as the `teamspeak` user.
+  </Step>
+
+  <Step title="Check listening ports">
+    Verify the server is listening on the correct ports:
+
+    ```bash
+    sudo netstat -tulpn | grep tsserver
+    ```
+
+    Or using `ss`:
+
+    ```bash
+    sudo ss -tulpn | grep tsserver
+    ```
+
+    You should see ports 9987 (UDP) and 30033 (TCP) in the LISTEN state.
+  </Step>
+
+  <Step title="Check service status">
+    Verify the systemd service is active:
+
+    ```bash
+    sudo systemctl status teamspeak6
+    ```
+
+    The output should show "active (running)" with no errors.
+  </Step>
+
+  <Step title="Review logs">
+    Check the logs for any errors:
+
+    ```bash
+    sudo journalctl -u teamspeak6 -n 50 --no-pager
+    ```
+
+    Look for any warnings or errors that might indicate problems.
+  </Step>
+
+  <Step title="Test client connection">
+    1. Download the [TeamSpeak 6 Client](https://teamspeak.com/en/downloads/)
+    2. Connect to your server's IP address and port 9987
+    3. Verify you can connect successfully
+  </Step>
+</Steps>
+
+## Updating the Server
+
+<Steps>
+  <Step title="Stop the server">
+    ```bash
+    sudo systemctl stop teamspeak6
+    ```
+  </Step>
+
+  <Step title="Backup your data">
+    ```bash
+    sudo cp -r /opt/teamspeak6 /opt/teamspeak6-backup-$(date +%Y%m%d)
+    ```
+
+    <Warning>
+      Always backup your server data before updating!
+    </Warning>
+  </Step>
+
+  <Step title="Download and extract the new version">
+    ```bash
+    cd /tmp
+    wget https://files.teamspeak-services.com/releases/server/6.x.x/teamspeak6-server-linux_amd64-x.x.x.tar.gz
+    tar -xzf teamspeak6-server-linux_amd64-*.tar.gz
+    ```
+  </Step>
+
+  <Step title="Replace the binary and files">
+    ```bash
+    sudo cp /tmp/teamspeak6-server-linux_amd64/tsserver /opt/teamspeak6/
+    sudo cp -r /tmp/teamspeak6-server-linux_amd64/sql /opt/teamspeak6/
+    sudo chown -R teamspeak:teamspeak /opt/teamspeak6
+    ```
+
+    <Note>
+      Keep your existing configuration files, logs, and database. Only replace the binary and SQL files.
+    </Note>
+  </Step>
+
+  <Step title="Start the server">
+    ```bash
+    sudo systemctl start teamspeak6
+    sudo systemctl status teamspeak6
+    ```
+
+    Check the logs to ensure the update was successful:
+
+    ```bash
+    sudo journalctl -u teamspeak6 -f
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server won't start">
+    Check the logs for errors:
+    
+    ```bash
+    sudo journalctl -u teamspeak6 -n 100 --no-pager
+    ```
+    
+    Common issues:
+    - License not accepted: Ensure `--accept-license` is in the ExecStart command
+    - Port already in use: Check if another process is using ports 9987 or 30033
+    - Permission issues: Verify the teamspeak user has read/write access to `/opt/teamspeak6`
+  </Accordion>
+
+  <Accordion title="Permission denied errors">
+    Ensure proper ownership of the server directory:
+    
+    ```bash
+    sudo chown -R teamspeak:teamspeak /opt/teamspeak6
+    sudo chmod +x /opt/teamspeak6/tsserver
+    ```
+  </Accordion>
+
+  <Accordion title="Cannot connect from client">
+    1. Check if the server is running: `sudo systemctl status teamspeak6`
+    2. Verify ports are open: `sudo netstat -tulpn | grep tsserver`
+    3. Check firewall rules: `sudo ufw status` or `sudo firewall-cmd --list-all`
+    4. Test connectivity: `nc -uz <server-ip> 9987`
+  </Accordion>
+
+  <Accordion title="High CPU or memory usage">
+    1. Check the number of connected clients
+    2. Review log files for errors or warnings
+    3. Consider adjusting thread settings in `tsserver.yaml`:
+    
+    ```yaml
+    server:
+      threads-voice-udp: 5  # Adjust based on CPU cores
+    ```
+  </Accordion>
+
+  <Accordion title="Database errors">
+    If you see database-related errors:
+    
+    1. Verify database file permissions
+    2. Check disk space: `df -h`
+    3. For SQLite integrity issues, the server will attempt to repair on startup
+    4. If problems persist, consider switching to MariaDB for better reliability
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Learn how to customize your server settings
+  </Card>
+  <Card title="Database Setup" icon="database" href="/database">
+    Configure MariaDB for better performance
+  </Card>
+</CardGroup>

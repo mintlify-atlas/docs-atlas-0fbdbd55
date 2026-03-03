@@ -1,0 +1,204 @@
+---
+title: Licensing
+description: TeamSpeak 6 Server license information and terms
+icon: certificate
+---
+
+## Beta License
+
+During the beta period, the TeamSpeak 6 Server includes a complimentary license for testing and evaluation.
+
+### License Details
+
+<Info>
+**32-Slot Beta License**
+
+- **Capacity:** 32 simultaneous client connections
+- **Renewal:** Automatically renewed every two months
+- **Cost:** Free during beta/evaluation period
+- **Duration:** Valid throughout the entire beta phase
+</Info>
+
+The beta license is designed to allow thorough testing of TeamSpeak 6 Server functionality while the platform is being finalized.
+
+### Automatic Renewal
+
+You do not need to take any action to maintain your beta license:
+
+- Renewal happens automatically every two months
+- No manual intervention required
+- No registration or license key needed
+- The license is included with the server software
+
+### Current Limitations
+
+<Warning>
+During the beta period:
+
+- **It is not yet possible to obtain or upgrade to a larger license** for TeamSpeak 6
+- All self-hosted servers are limited to 32 slots
+- Licensing options and pricing are not yet finalized
+</Warning>
+
+If you need more than 32 simultaneous connections, you can rent an official TeamSpeak 6 server from [myteamspeak.com/communities](https://www.myteamspeak.com/communities) with higher slot counts.
+
+## TeamSpeak 3 Licenses
+
+<Warning>
+**TeamSpeak 3 Server licenses are not compatible** with TeamSpeak 6 Servers.
+</Warning>
+
+There is no license migration or transfer between the two versions:
+
+- Existing TS3 licenses cannot be applied to TS6 servers
+- No discount or credit for TS3 license holders (at this time)
+- The two systems use different licensing mechanisms
+
+You must use the included beta license for TeamSpeak 6 Server during the beta period.
+
+## License Acceptance
+
+Before running the TeamSpeak 6 Server, you must accept the license terms.
+
+### Binary Installation
+
+```bash
+./tsserver --accept-license
+```
+
+The `--accept-license` flag is required on first startup.
+
+### Docker Installation
+
+```bash
+docker run -d \
+  --name teamspeak-server \
+  -e TSSERVER_LICENSE_ACCEPTED=accept \
+  teamspeaksystems/teamspeak6-server:latest
+```
+
+```yaml
+# docker-compose.yaml
+services:
+  teamspeak:
+    image: teamspeaksystems/teamspeak6-server:latest
+    environment:
+      - TSSERVER_LICENSE_ACCEPTED=accept
+```
+
+<Note>
+The server will not start without explicit license acceptance.
+</Note>
+
+## Terms and Conditions
+
+The TeamSpeak 6 Server is provided under specific terms and conditions. By using the software, you agree to:
+
+### Usage Rights
+
+- Use the software for its intended purpose
+- Comply with applicable laws and regulations
+- Not reverse engineer, decompile, or disassemble the software
+- Not redistribute or resell the server software
+
+### Data and Privacy
+
+- TeamSpeak collects minimal operational data as described in the privacy policy
+- Self-hosted servers give you control over user data
+- You are responsible for compliance with data protection regulations (GDPR, etc.) in your jurisdiction
+
+### Beta Disclaimer
+
+<Warning>
+The beta software is provided "as is" without warranties:
+
+- No guarantee of stability or uptime
+- Features may change or be removed
+- No service level agreements (SLAs)
+- No production support guarantees
+</Warning>
+
+Beta software is intended for testing and evaluation. While many users run it in production, you do so at your own risk.
+
+## Full License Text
+
+The complete license terms and privacy policy are included with the server distribution in the `LICENSE.md` file.
+
+Key sections include:
+
+1. **Privacy Policy** - How TeamSpeak collects and handles data
+2. **General Terms and Conditions** - Rights and responsibilities
+3. **Customer Information** - Details for end users
+
+You can also review the terms online:
+
+- **Privacy Policy:** [teamspeak.com/en/privacy](https://teamspeak.com/en/privacy/)
+- **Terms of Service:** [teamspeak.com/en/terms](https://teamspeak.com/en/terms/)
+
+<Info>
+The LICENSE.md file in your server installation contains the complete legal text last updated January 21, 2025.
+</Info>
+
+## Contact Information
+
+For licensing questions or concerns:
+
+**TeamSpeak Systems Inc.**
+PO Box 211180
+Chula Vista, CA 91921
+USA
+
+**TeamSpeak Systems GmbH**
+Wilhelmstraße 21
+74072 Heilbronn
+Germany
+
+**Privacy Inquiries:**
+privacy@teamspeak.com
+
+**General Support:**
+Use the [Community Forum](https://community.teamspeak.com) or [GitHub Issues](https://github.com/teamspeak/teamspeak6-server/issues)
+
+## Future Licensing
+
+Licensing details for the stable release of TeamSpeak 6 Server have not yet been announced.
+
+### What We Know
+
+- Licensing and pricing will be finalized before stable release
+- Options for larger slot counts will become available
+- Details will be announced on official channels
+
+### What to Expect
+
+<Note>
+TeamSpeak will announce licensing options, pricing tiers, and upgrade paths well in advance of the stable release.
+
+Stay informed through:
+- [TeamSpeak Blog and Announcements](https://teamspeak.com/en/)
+- [Community Forum](https://community.teamspeak.com)
+- [GitHub Repository](https://github.com/teamspeak/teamspeak6-server)
+- [Twitter](https://x.com/teamspeak)
+</Note>
+
+## Frequently Asked Questions
+
+**Q: Do I need to purchase a license during the beta?**
+A: No, the 32-slot beta license is included free of charge.
+
+**Q: Will my TS3 license work with TS6?**
+A: No, TS3 licenses are not compatible with TeamSpeak 6 servers.
+
+**Q: Can I get more than 32 slots during the beta?**
+A: Not for self-hosted servers. You can rent larger servers from [myteamspeak.com/communities](https://www.myteamspeak.com/communities).
+
+**Q: How long will the beta license be valid?**
+A: Throughout the entire beta period. It renews automatically every two months.
+
+**Q: What happens when the beta ends?**
+A: TeamSpeak will announce licensing options and migration paths before the beta concludes.
+
+**Q: Where can I read the full license terms?**
+A: The complete license is in the `LICENSE.md` file included with your server installation.
+
+For more questions, see the [FAQ](/resources/faq) or visit the [Community Forum](https://community.teamspeak.com/c/teamspeak-6-server/45).

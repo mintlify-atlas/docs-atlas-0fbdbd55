@@ -1,0 +1,179 @@
+---
+title: Server Query Overview
+description: Introduction to TeamSpeak 6 Server Query interfaces and protocols
+---
+
+Server Query provides programmatic access to your TeamSpeak 6 server through multiple protocols. You can automate server administration, monitor server status, and integrate TeamSpeak with external applications.
+
+## Available Protocols
+
+TeamSpeak 6 Server supports three Server Query protocols:
+
+<CardGroup cols={3}>
+  <Card title="HTTP" icon="globe" href="/server-query/http">
+    REST-style interface over HTTP for web applications and modern APIs
+  </Card>
+  <Card title="HTTPS" icon="lock" href="/server-query/http">
+    Secure HTTP interface with SSL/TLS encryption
+  </Card>
+  <Card title="SSH" icon="terminal" href="/server-query/ssh">
+    Terminal-based interface over SSH for secure command-line access
+  </Card>
+</CardGroup>
+
+## Common Configuration Options
+
+All Server Query protocols share common configuration options:
+
+| Parameter | Environment Variable | Default | Description |
+|-----------|---------------------|---------|-------------|
+| `--query-pool-size` | `TSSERVER_QUERY_POOL_SIZE` | `2` | Number of threads for query command processing (2-32) |
+| `--query-timeout` | `TSSERVER_QUERY_TIMEOUT` | `300` | Timeout in seconds before query connections expire |
+| `--query-buffer-mb` | `TSSERVER_QUERY_BUFFER_MB` | `20` | Memory in MB allocated for query connection buffering (20-100) |
+| `--query-log-commands` | `TSSERVER_QUERY_LOG_COMMANDS` | `false` | Log every command received on the query interface |
+| `--query-log-timing` | `TSSERVER_QUERY_LOG_TIMING` | `3600` | Interval in seconds to log query statistics (10-31556952) |
+| `--query-documentation-path` | `TSSERVER_QUERY_DOCUMENTATION_PATH` | `serverquerydocs` | Path to the query documentation files |
+
+## Security Options
+
+### IP Access Control
+
+Control which IP addresses can access your Server Query interface:
+
+```bash Command Line
+./tsserver \
+  --query-ip-allow-list query_ip_allowlist.txt \
+  --query-ip-block-list query_ip_denylist.txt
+```
+
+```bash Environment Variables
+export TSSERVER_QUERY_ALLOW_LIST=query_ip_allowlist.txt
+export TSSERVER_QUERY_DENY_LIST=query_ip_denylist.txt
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    ip-allow-list: query_ip_allowlist.txt
+    ip-block-list: query_ip_denylist.txt
+```
+
+| Parameter | Environment Variable | Default | Description |
+|-----------|---------------------|---------|-------------|
+| `--query-ip-allow-list` | `TSSERVER_QUERY_ALLOW_LIST` | `query_ip_allowlist.txt` | IPs exempt from flood protection |
+| `--query-ip-block-list` | `TSSERVER_QUERY_DENY_LIST` | `query_ip_denylist.txt` | IPs blocked from query interface |
+
+### Brute Force Protection
+
+By default, the server includes brute force protection. You can disable this in trusted environments:
+
+```bash Command Line
+./tsserver --query-skip-brute-force-check
+```
+
+```bash Environment Variables
+export TSSERVER_QUERY_SKIP_BRUTE_FORCE_CHECK=1
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    skip-brute-force-check: 1
+```
+
+<Warning>
+Only disable brute force checking in secure, controlled environments. This protection helps prevent unauthorized access attempts.
+</Warning>
+
+## Authentication
+
+All Server Query protocols require authentication. See the [Authentication](/server-query/authentication) guide for detailed information on setting up admin passwords and managing query credentials.
+
+## Performance Tuning
+
+<Steps>
+  <Step title="Adjust Pool Size">
+    Increase `--query-pool-size` for servers with high query traffic:
+    
+    ```bash
+    ./tsserver --query-pool-size 8
+    ```
+  </Step>
+  
+  <Step title="Configure Buffer Memory">
+    Allocate more memory for query buffering on busy servers:
+    
+    ```bash
+    ./tsserver --query-buffer-mb 50
+    ```
+  </Step>
+  
+  <Step title="Enable Query Logging">
+    Monitor query performance by enabling logging:
+    
+    ```bash
+    ./tsserver --query-log-commands --query-log-timing 1800
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Query pool size should be adjusted based on your server's concurrent query connections. Higher values consume more resources but handle more simultaneous queries.
+</Note>
+
+## Configuration File Example
+
+Here's a complete Server Query configuration in `tsserver.yaml`:
+
+```yaml
+server:
+  query:
+    pool-size: 4
+    log-timing: 3600
+    ip-allow-list: query_ip_allowlist.txt
+    ip-block-list: query_ip_denylist.txt
+    admin-password: "your-secure-password"
+    log-commands: 0
+    skip-brute-force-check: 0
+    buffer-mb: 30
+    documentation-path: serverquerydocs
+    timeout: 300
+    
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: ssh_host_rsa_key
+    
+    http:
+      enable: 1
+      port: 10080
+      ip:
+        - 0.0.0.0
+        - "::"
+    
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: "/path/to/cert.pem"
+      private-key: "/path/to/key.pem"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="HTTP/HTTPS Setup" icon="globe" href="/server-query/http">
+    Configure the HTTP and HTTPS query interfaces
+  </Card>
+  <Card title="SSH Setup" icon="terminal" href="/server-query/ssh">
+    Configure the SSH query interface
+  </Card>
+  <Card title="Authentication" icon="key" href="/server-query/authentication">
+    Set up query admin credentials and manage access
+  </Card>
+</CardGroup>

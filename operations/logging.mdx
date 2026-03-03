@@ -1,0 +1,544 @@
+---
+title: "Logging"
+description: "Configure and manage TeamSpeak 6 Server logs"
+---
+
+## Overview
+
+TeamSpeak 6 Server provides comprehensive logging capabilities to help you monitor server activity, troubleshoot issues, and maintain security. This guide covers log configuration, management, and analysis.
+
+## Log Configuration
+
+### Log Path
+
+Configure where log files are stored:
+
+<Tabs>
+  <Tab title="Command Line">
+    ```bash
+    ./tsserver --log-path /var/log/teamspeak --accept-license
+    ```
+  </Tab>
+  <Tab title="Environment Variable">
+    ```bash
+    export TSSERVER_LOG_PATH=/var/log/teamspeak
+    ./tsserver --accept-license
+    ```
+  </Tab>
+  <Tab title="Configuration File">
+    ```yaml tsserver.yaml
+    server:
+      log-path: /var/log/teamspeak
+    ```
+  </Tab>
+</Tabs>
+
+**Default log path:** `logs/` (relative to the server binary)
+
+<Note>
+  For Docker installations, logs are written to `/var/tsserver/logs/` inside the container. Ensure this path is included in your volume mount to persist logs.
+</Note>
+
+### Log Append Mode
+
+Control how log files are created:
+
+<Tabs>
+  <Tab title="Daily Rotation (Default)">
+    Creates a new log file each day:
+    
+    ```yaml tsserver.yaml
+    server:
+      log-append: 0
+    ```
+    
+    Log file naming: `ts6server_YYYY-MM-DD__HH_MM_SS.log`
+  </Tab>
+  <Tab title="Single Growing File">
+    Writes to one continuous log file:
+    
+    ```yaml tsserver.yaml
+    server:
+      log-append: 1
+    ```
+    
+    ```bash
+    # Or via command line
+    ./tsserver --log-append --accept-license
+    ```
+    
+    Log file naming: `ts6server.log`
+  </Tab>
+</Tabs>
+
+<Warning>
+  Using append mode without log rotation can result in very large log files. Implement external log rotation if using this mode.
+</Warning>
+
+## Log Types and Locations
+
+### Server Logs
+
+Main server logs contain general operation information:
+
+<Tabs>
+  <Tab title="Docker">
+    ```bash
+    # View container logs (stdout/stderr)
+    docker logs teamspeak-server
+
+    # Follow logs in real-time
+    docker logs -f teamspeak-server
+
+    # View last 100 lines
+    docker logs --tail 100 teamspeak-server
+
+    # Show logs since specific time
+    docker logs --since 2024-01-01T10:00:00 teamspeak-server
+
+    # Access log files in mounted volume
+    docker exec teamspeak-server ls -lh /var/tsserver/logs/
+    ```
+  </Tab>
+  <Tab title="Binary Installation">
+    ```bash
+    # View recent server logs
+    tail -f logs/ts6server_*.log
+
+    # View all logs in directory
+    ls -lh logs/
+
+    # Search logs for specific content
+    grep -r "error" logs/
+    ```
+  </Tab>
+</Tabs>
+
+### Query Logs
+
+Enable detailed ServerQuery command logging:
+
+```yaml tsserver.yaml
+server:
+  query:
+    log-commands: 1
+    log-timing: 3600
+```
+
+Environment variables:
+
+```bash
+export TSSERVER_QUERY_LOG_COMMANDS=1
+export TSSERVER_QUERY_LOG_TIMING=3600
+```
+
+<Note>
+  `log-timing` defines the interval (in seconds) for logging query statistics. Default is 3600 seconds (1 hour).
+</Note>
+
+### Database Query Logs
+
+Enable SQL query logging for debugging:
+
+```yaml tsserver.yaml
+server:
+  database:
+    config:
+      log-queries: 1
+```
+
+Or via command line:
+
+```bash
+./tsserver --db-log-queries --accept-license
+```
+
+<Warning>
+  Database query logging generates significant log volume and may impact performance. Only enable for troubleshooting.
+</Warning>
+
+### Crash Dumps
+
+Configure crash dump location:
+
+```yaml tsserver.yaml
+server:
+  crashdump-path: crashdumps
+```
+
+```bash
+# Or via environment variable
+export TSSERVER_CRASHDUMP_PATH=/var/crashes/teamspeak
+```
+
+## Docker Logging
+
+### Docker Log Drivers
+
+Configure Docker logging driver for advanced log management:
+
+```yaml docker-compose.yaml
+services:
+  teamspeak:
+    image: teamspeaksystems/teamspeak6-server:latest
+    container_name: teamspeak-server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - teamspeak-data:/var/tsserver
+```
+
+### Common Logging Drivers
+
+<Tabs>
+  <Tab title="JSON File (Default)">
+    ```yaml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+    ```
+    
+    Logs stored in: `/var/lib/docker/containers/<container-id>/<container-id>-json.log`
+  </Tab>
+  <Tab title="Syslog">
+    ```yaml
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://192.168.1.100:514"
+        tag: "teamspeak-server"
+    ```
+    
+    Sends logs to a syslog server for centralized logging.
+  </Tab>
+  <Tab title="Journald">
+    ```yaml
+    logging:
+      driver: "journald"
+      options:
+        tag: "teamspeak-server"
+    ```
+    
+    View logs with:
+    ```bash
+    journalctl CONTAINER_NAME=teamspeak-server -f
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Use volume mounts to persist file-based logs across container recreations:
+  ```yaml
+  volumes:
+    - ./logs:/var/tsserver/logs
+  ```
+</Tip>
+
+## Log Rotation
+
+### Manual Rotation (Binary Installation)
+
+For servers using `--log-append`, implement logrotate:
+
+<Steps>
+  <Step title="Create logrotate configuration">
+    Create `/etc/logrotate.d/teamspeak`:
+    
+    ```conf /etc/logrotate.d/teamspeak
+    /var/tsserver/logs/ts6server.log {
+        daily
+        rotate 14
+        compress
+        delaycompress
+        notifempty
+        missingok
+        copytruncate
+    }
+    ```
+  </Step>
+  
+  <Step title="Test the configuration">
+    ```bash
+    # Dry run to test configuration
+    logrotate -d /etc/logrotate.d/teamspeak
+
+    # Force rotation to verify
+    logrotate -f /etc/logrotate.d/teamspeak
+    ```
+  </Step>
+  
+  <Step title="Verify automated rotation">
+    Logrotate runs daily via cron. Verify with:
+    
+    ```bash
+    # Check logrotate status
+    cat /var/lib/logrotate/status | grep teamspeak
+
+    # View rotated logs
+    ls -lh /var/tsserver/logs/
+    ```
+  </Step>
+</Steps>
+
+### Docker Log Rotation
+
+Docker automatically rotates logs based on the logging driver configuration:
+
+```yaml docker-compose.yaml
+services:
+  teamspeak:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"      # Rotate when file reaches 50MB
+        max-file: "7"        # Keep 7 rotated files
+        compress: "true"     # Compress rotated files
+```
+
+## Log Analysis
+
+### Common Log Patterns
+
+Search logs for common events:
+
+```bash
+# Client connections
+grep "client connected" logs/ts6server_*.log
+
+# Client disconnections
+grep "client disconnected" logs/ts6server_*.log
+
+# Errors
+grep -i "error" logs/ts6server_*.log
+
+# Warnings
+grep -i "warning" logs/ts6server_*.log
+
+# ServerQuery activity
+grep "query" logs/ts6server_*.log
+
+# Failed login attempts
+grep "authentication failed" logs/ts6server_*.log
+```
+
+### Log Monitoring Tools
+
+Use standard Linux tools for log analysis:
+
+```bash
+# Monitor logs in real-time with highlighting
+tail -f logs/ts6server_*.log | grep --color -E "error|warning|$"
+
+# Count occurrences of specific events
+grep -c "client connected" logs/ts6server_*.log
+
+# Extract and sort unique IP addresses
+grep "client connected" logs/ts6server_*.log | \
+  awk '{print $6}' | sort -u
+
+# Find logs from specific date range
+find logs/ -name "ts6server_2024-01-*" -type f
+```
+
+### Centralized Logging
+
+For production environments, use centralized logging:
+
+<Tabs>
+  <Tab title="ELK Stack">
+    Send logs to Elasticsearch, Logstash, and Kibana:
+    
+    ```yaml docker-compose.yaml
+    services:
+      teamspeak:
+        logging:
+          driver: "syslog"
+          options:
+            syslog-address: "tcp://logstash:5000"
+            tag: "teamspeak"
+    ```
+  </Tab>
+  <Tab title="Loki">
+    Use Grafana Loki for log aggregation:
+    
+    ```yaml docker-compose.yaml
+    services:
+      teamspeak:
+        logging:
+          driver: "loki"
+          options:
+            loki-url: "http://loki:3100/loki/api/v1/push"
+            labels: "service=teamspeak"
+    ```
+  </Tab>
+  <Tab title="Fluentd">
+    Forward logs to Fluentd:
+    
+    ```yaml docker-compose.yaml
+    services:
+      teamspeak:
+        logging:
+          driver: "fluentd"
+          options:
+            fluentd-address: "localhost:24224"
+            tag: "teamspeak.server"
+    ```
+  </Tab>
+</Tabs>
+
+## Log Security
+
+### Sensitive Information
+
+TeamSpeak logs may contain:
+
+- Client IP addresses
+- ServerQuery commands
+- Connection metadata
+
+<Warning>
+  Logs do not contain passwords or encryption keys, but treat them as sensitive data. Implement appropriate access controls.
+</Warning>
+
+### Access Control
+
+Restrict log file access:
+
+```bash
+# Set appropriate permissions (Linux)
+chmod 640 /var/tsserver/logs/*.log
+chown tsserver:tsserver /var/tsserver/logs/*.log
+
+# For Docker, set volume permissions
+docker run -v teamspeak-logs:/var/tsserver/logs \
+  --user 1000:1000 \
+  teamspeaksystems/teamspeak6-server:latest
+```
+
+## Troubleshooting with Logs
+
+### Startup Issues
+
+```bash
+# Check for configuration errors
+grep -A 5 "failed to start" logs/ts6server_*.log
+
+# Verify license acceptance
+grep "license" logs/ts6server_*.log
+
+# Check database connection
+grep -i "database" logs/ts6server_*.log
+```
+
+### Connection Problems
+
+```bash
+# Check for port binding issues
+grep "failed to bind" logs/ts6server_*.log
+
+# View connection errors
+grep "connection.*failed" logs/ts6server_*.log
+
+# Check firewall or network issues
+grep -i "timeout" logs/ts6server_*.log
+```
+
+### Performance Issues
+
+```bash
+# Look for resource warnings
+grep -i "memory\|cpu\|thread" logs/ts6server_*.log
+
+# Check for database slow queries
+grep "slow query" logs/ts6server_*.log
+
+# Find connection spikes
+grep "client connected" logs/ts6server_*.log | \
+  awk '{print $1, $2}' | uniq -c
+```
+
+## Log Retention
+
+### Best Practices
+
+<Steps>
+  <Step title="Define retention policy">
+    Determine how long to keep logs based on:
+    - Compliance requirements
+    - Available storage
+    - Troubleshooting needs
+    
+    Recommended: 30-90 days for active logs
+  </Step>
+  
+  <Step title="Archive old logs">
+    ```bash
+    # Compress logs older than 30 days
+    find /var/tsserver/logs -name "*.log" -mtime +30 -exec gzip {} \;
+
+    # Move to archive location
+    find /var/tsserver/logs -name "*.log.gz" -mtime +7 \
+      -exec mv {} /archive/teamspeak/ \;
+    ```
+  </Step>
+  
+  <Step title="Automated cleanup">
+    Create a cron job for automated cleanup:
+    
+    ```bash
+    # Edit crontab
+    crontab -e
+
+    # Add daily cleanup at 2 AM
+    0 2 * * * find /var/tsserver/logs -name "*.log" -mtime +90 -delete
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  Consider backing up logs before deletion. See [Backup & Restore](/operations/backup-restore) for details.
+</Tip>
+
+## Log Export
+
+### Export to File
+
+```bash
+# Export Docker logs
+docker logs teamspeak-server > teamspeak-$(date +%Y%m%d).log 2>&1
+
+# Export with timestamps
+docker logs --timestamps teamspeak-server > teamspeak-$(date +%Y%m%d).log 2>&1
+
+# Export specific date range
+docker logs --since "2024-01-01T00:00:00" \
+  --until "2024-01-31T23:59:59" \
+  teamspeak-server > teamspeak-january-2024.log 2>&1
+```
+
+### Export for Support
+
+When requesting support, provide relevant logs:
+
+```bash
+# Create support bundle
+tar -czf teamspeak-logs-$(date +%Y%m%d).tar.gz \
+  logs/*.log \
+  tsserver.yaml
+
+# For Docker installations
+docker logs teamspeak-server > server.log 2>&1
+tar -czf teamspeak-support-$(date +%Y%m%d).tar.gz \
+  server.log \
+  docker-compose.yaml
+```
+
+<Note>
+  Remove or redact sensitive information (IP addresses, custom configurations) before sharing logs publicly.
+</Note>

@@ -1,0 +1,403 @@
+---
+title: SSH Query Interface
+description: Configure and use the SSH Server Query protocol
+---
+
+The SSH query interface provides secure, terminal-based access to your TeamSpeak 6 server. This protocol is ideal for command-line administration, automation scripts, and secure remote management.
+
+## SSH Configuration
+
+### Enable SSH Query
+
+The SSH query interface is disabled by default. You can enable it using any of these methods:
+
+<CodeGroup>
+```bash Command Line
+./tsserver --query-ssh-enable --query-ssh-port 10022
+```
+
+```bash Environment Variables
+export TSSERVER_QUERY_SSH_ENABLED=1
+export TSSERVER_QUERY_SSH_PORT=10022
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: ssh_host_rsa_key
+```
+</CodeGroup>
+
+### SSH Configuration Options
+
+| Parameter | Environment Variable | Default | Type | Description |
+|-----------|---------------------|---------|------|-------------|
+| `--query-ssh-enable` | `TSSERVER_QUERY_SSH_ENABLED` | `false` | Boolean | Enables the SSH query interface |
+| `--query-ssh-port` | `TSSERVER_QUERY_SSH_PORT` | `10022` | Integer (1-65535) | Port for SSH query connections |
+| `--query-ssh-ip` | `TSSERVER_QUERY_SSH_IP` | `[0.0.0.0, ::]` | String | IP addresses to bind for SSH queries |
+| `--query-ssh-rsa-key` | `TSSERVER_QUERY_SSH_RSA_KEY` | `ssh_host_rsa_key` | String | Path to SSH RSA host key file |
+
+## SSH Host Key Setup
+
+The SSH query interface requires an RSA host key for secure connections.
+
+<Steps>
+  <Step title="Check for Existing Key">
+    First, check if a host key already exists:
+    
+    ```bash
+    ls -l ssh_host_rsa_key
+    ```
+    
+    If the file exists, you can skip key generation.
+  </Step>
+  
+  <Step title="Generate RSA Host Key">
+    If no key exists, generate one using ssh-keygen:
+    
+    ```bash
+    ssh-keygen -t rsa -b 4096 -f ssh_host_rsa_key -N ""
+    ```
+    
+    This creates two files:
+    - `ssh_host_rsa_key` - Private key (keep secure)
+    - `ssh_host_rsa_key.pub` - Public key
+  </Step>
+  
+  <Step title="Set Proper Permissions">
+    Secure the private key file:
+    
+    ```bash
+    chmod 600 ssh_host_rsa_key
+    chmod 644 ssh_host_rsa_key.pub
+    ```
+  </Step>
+  
+  <Step title="Configure Server">
+    Point the server to your host key:
+    
+    ```bash
+    ./tsserver --query-ssh-enable --query-ssh-rsa-key /path/to/ssh_host_rsa_key
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Never share or commit your SSH host private key (`ssh_host_rsa_key`). Keep this file secure and restrict access to the TeamSpeak server process only.
+</Warning>
+
+## Binding to Specific IP Addresses
+
+By default, SSH query binds to all available IPv4 and IPv6 addresses. You can restrict this to specific IPs:
+
+<CodeGroup>
+```bash Command Line (IPv4 only)
+./tsserver --query-ssh-enable --query-ssh-ip 192.168.1.100
+```
+
+```bash Command Line (Multiple IPs)
+./tsserver --query-ssh-enable --query-ssh-ip "192.168.1.100,2001:db8::1"
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 192.168.1.100
+        - 2001:db8::1
+      rsa-key: ssh_host_rsa_key
+```
+</CodeGroup>
+
+## Complete Configuration Examples
+
+### Basic SSH Query
+
+Simple SSH query configuration:
+
+```yaml tsserver.yaml
+server:
+  query:
+    pool-size: 4
+    timeout: 300
+    buffer-mb: 20
+    admin-password: "ssh-query-password"
+    
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: ssh_host_rsa_key
+```
+
+### Production SSH Configuration
+
+Secure SSH configuration for production with IP restrictions:
+
+```yaml tsserver.yaml
+server:
+  query:
+    pool-size: 8
+    timeout: 600
+    buffer-mb: 50
+    admin-password: "secure-ssh-password"
+    log-commands: 1
+    ip-allow-list: query_ip_allowlist.txt
+    skip-brute-force-check: 0
+    
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: /etc/teamspeak/ssh_host_rsa_key
+```
+
+### Custom SSH Port
+
+Using a non-standard port for additional security:
+
+```yaml tsserver.yaml
+server:
+  query:
+    admin-password: "query-password"
+    
+    ssh:
+      enable: 1
+      port: 22022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: ssh_host_rsa_key
+```
+
+<Note>
+Using a non-standard SSH port can reduce automated attack attempts, but security through obscurity should not be your only defense.
+</Note>
+
+## Connecting to SSH Query
+
+### Using SSH Client
+
+Connect to your TeamSpeak server via SSH query:
+
+```bash Basic Connection
+ssh -p 10022 serveradmin@your-server
+```
+
+When prompted, enter the admin password you configured.
+
+### First Connection
+
+On your first connection, you'll see a host key fingerprint warning:
+
+```bash
+The authenticity of host '[your-server]:10022' can't be established.
+RSA key fingerprint is SHA256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+Are you sure you want to continue connecting (yes/no)?
+```
+
+Type `yes` to accept and continue.
+
+### Example Session
+
+```bash
+$ ssh -p 10022 serveradmin@your-server
+serveradmin@your-server's password: [enter password]
+
+Welcome to the TeamSpeak 6 ServerQuery interface.
+TS6>
+```
+
+You can now execute query commands interactively.
+
+## Docker Configuration
+
+When running TeamSpeak 6 in Docker, expose the SSH query port:
+
+<CodeGroup>
+```bash Docker Run
+docker run -d \
+  -p 10022:10022 \
+  -v /path/to/keys:/keys \
+  -e TSSERVER_QUERY_SSH_ENABLED=1 \
+  -e TSSERVER_QUERY_SSH_PORT=10022 \
+  -e TSSERVER_QUERY_SSH_RSA_KEY=/keys/ssh_host_rsa_key \
+  -e TSSERVER_QUERY_ADMIN_PASSWORD=your-secure-password \
+  teamspeak6-server
+```
+
+```yaml docker-compose.yml
+version: '3.8'
+services:
+  teamspeak:
+    image: teamspeak6-server
+    ports:
+      - "10022:10022"
+    volumes:
+      - ./ssh_keys:/keys:ro
+    environment:
+      TSSERVER_QUERY_SSH_ENABLED: 1
+      TSSERVER_QUERY_SSH_PORT: 10022
+      TSSERVER_QUERY_SSH_RSA_KEY: /keys/ssh_host_rsa_key
+      TSSERVER_QUERY_ADMIN_PASSWORD: your-secure-password
+```
+</CodeGroup>
+
+<Warning>
+When mounting the SSH key directory, ensure the private key file has proper permissions (600) on the host system.
+</Warning>
+
+## Firewall Configuration
+
+Ensure your firewall allows SSH query traffic:
+
+```bash UFW (Ubuntu)
+sudo ufw allow 10022/tcp comment 'TeamSpeak SSH Query'
+```
+
+```bash firewalld (CentOS/RHEL)
+sudo firewall-cmd --permanent --add-port=10022/tcp
+sudo firewall-cmd --reload
+```
+
+```bash iptables
+sudo iptables -A INPUT -p tcp --dport 10022 -j ACCEPT
+sudo iptables-save > /etc/iptables/rules.v4
+```
+
+## Testing Your Configuration
+
+<Steps>
+  <Step title="Verify Service is Listening">
+    Check that the server is listening on the SSH query port:
+    
+    ```bash
+    netstat -tlnp | grep tsserver
+    # or
+    ss -tlnp | grep tsserver
+    ```
+    
+    You should see port 10022 (or your configured port) listed.
+  </Step>
+  
+  <Step title="Test SSH Connection">
+    Attempt to connect:
+    
+    ```bash
+    ssh -p 10022 serveradmin@localhost
+    ```
+    
+    You should be prompted for a password.
+  </Step>
+  
+  <Step title="Verify Host Key">
+    Check the SSH host key fingerprint:
+    
+    ```bash
+    ssh-keygen -lf ssh_host_rsa_key.pub
+    ```
+    
+    Compare this to the fingerprint shown during your first connection.
+  </Step>
+</Steps>
+
+## Automation with SSH Query
+
+SSH query is ideal for automation scripts:
+
+### Single Command Execution
+
+Execute a single query command:
+
+```bash
+echo "serverinfo" | ssh -p 10022 serveradmin@your-server
+```
+
+### Script with Multiple Commands
+
+```bash
+#!/bin/bash
+
+SSH_OPTS="-p 10022"
+SERVER="serveradmin@your-server"
+
+ssh $SSH_OPTS $SERVER << 'EOF'
+use sid=1
+clientlist
+channellist
+quit
+EOF
+```
+
+### Using SSH Keys for Authentication
+
+While password authentication is standard, you can also configure SSH public key authentication for automated scripts. Consult your TeamSpeak 6 documentation for details on query user SSH key setup.
+
+## Security Best Practices
+
+<Warning>
+Follow these security guidelines when configuring SSH query:
+</Warning>
+
+- **Use strong passwords**: Set a strong admin password with `--query-admin-password`
+- **Restrict IP access**: Use `--query-ip-allow-list` to limit which IPs can connect
+- **Enable logging**: Use `--query-log-commands` to audit query activity
+- **Secure the host key**: Keep your SSH host private key (ssh_host_rsa_key) secure with proper permissions
+- **Use non-standard ports**: Consider using a custom port to reduce automated attacks
+- **Enable brute force protection**: Keep `--query-skip-brute-force-check` disabled (default)
+- **Monitor connections**: Regularly review query logs for suspicious activity
+- **Limit exposure**: Bind to specific IPs instead of all interfaces when possible
+
+## Troubleshooting
+
+### Connection Refused
+
+If you get "Connection refused":
+
+1. Verify SSH query is enabled
+2. Check the server is listening: `netstat -tlnp | grep 10022`
+3. Verify firewall rules allow the port
+4. Check server logs for errors
+
+### Host Key Verification Failed
+
+If the host key has changed:
+
+```bash
+ssh-keygen -R [your-server]:10022
+```
+
+Then reconnect and accept the new key.
+
+### Permission Denied
+
+If authentication fails:
+
+1. Verify you're using the correct admin password
+2. Check that `--query-admin-password` is set
+3. Review query logs for authentication attempts
+4. Ensure your IP is not in the block list
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="HTTP/HTTPS Query" icon="globe" href="/server-query/http">
+    Configure the HTTP and HTTPS query interfaces
+  </Card>
+  <Card title="Authentication" icon="key" href="/server-query/authentication">
+    Set up query admin credentials
+  </Card>
+</CardGroup>

@@ -1,0 +1,655 @@
+---
+title: "Backup & Restore"
+description: "Backup and restore your TeamSpeak 6 Server data"
+---
+
+## Overview
+
+Regular backups are essential for protecting your TeamSpeak 6 Server data, including server configuration, user permissions, channels, and file uploads. This guide covers backup strategies for both Docker and binary installations.
+
+## What to Backup
+
+Your TeamSpeak 6 Server backup should include:
+
+| Component | Description | Critical |
+|-----------|-------------|----------|
+| **Database** | Server configuration, users, channels, permissions | Yes |
+| **Files** | Uploaded files, avatars, icons | Yes |
+| **License** | `licensekey.dat` file | Yes |
+| **Configuration** | `tsserver.yaml` or docker-compose.yaml | Recommended |
+| **Logs** | Server logs for troubleshooting | Optional |
+| **SSL Certificates** | HTTPS query certificates | If applicable |
+| **SSH Keys** | SSH query host keys | If applicable |
+
+<Warning>
+  Always stop the server before creating backups to ensure data consistency, or use database-specific backup tools that support hot backups.
+</Warning>
+
+## Docker Backup Strategies
+
+### Volume Backup
+
+For Docker installations, back up the entire data volume:
+
+<Steps>
+  <Step title="Stop the server">
+    ```bash
+    docker compose stop teamspeak-server
+    # Or if using docker run
+    docker stop teamspeak-server
+    ```
+  </Step>
+  
+  <Step title="Create backup">
+    ```bash
+    # Backup named volume to tar archive
+    docker run --rm \
+      -v teamspeak-data:/data \
+      -v $(pwd):/backup \
+      alpine tar czf /backup/teamspeak-backup-$(date +%Y%m%d-%H%M%S).tar.gz -C /data .
+    ```
+    
+    This creates a compressed backup of the entire volume.
+  </Step>
+  
+  <Step title="Restart the server">
+    ```bash
+    docker compose start teamspeak-server
+    # Or if using docker run
+    docker start teamspeak-server
+    ```
+  </Step>
+  
+  <Step title="Verify backup">
+    ```bash
+    # List backup contents
+    tar tzf teamspeak-backup-YYYYMMDD-HHMMSS.tar.gz | head -20
+
+    # Check backup size
+    ls -lh teamspeak-backup-*.tar.gz
+    ```
+  </Step>
+</Steps>
+
+### Automated Docker Backup Script
+
+Create a backup script for automated backups:
+
+```bash backup-teamspeak.sh
+#!/bin/bash
+
+set -e
+
+# Configuration
+BACKUP_DIR="/backups/teamspeak"
+CONTAINER_NAME="teamspeak-server"
+VOLUME_NAME="teamspeak-data"
+RETENTION_DAYS=30
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+BACKUP_FILE="${BACKUP_DIR}/teamspeak-backup-${TIMESTAMP}.tar.gz"
+
+# Create backup directory
+mkdir -p "${BACKUP_DIR}"
+
+echo "[$(date)] Starting TeamSpeak backup..."
+
+# Stop container
+echo "[$(date)] Stopping container..."
+docker stop "${CONTAINER_NAME}"
+
+# Create backup
+echo "[$(date)] Creating backup..."
+docker run --rm \
+  -v "${VOLUME_NAME}":/data \
+  -v "${BACKUP_DIR}":/backup \
+  alpine tar czf "/backup/teamspeak-backup-${TIMESTAMP}.tar.gz" -C /data .
+
+# Restart container
+echo "[$(date)] Restarting container..."
+docker start "${CONTAINER_NAME}"
+
+# Remove old backups
+echo "[$(date)] Cleaning up old backups..."
+find "${BACKUP_DIR}" -name "teamspeak-backup-*.tar.gz" -mtime +${RETENTION_DAYS} -delete
+
+echo "[$(date)] Backup completed: ${BACKUP_FILE}"
+ls -lh "${BACKUP_FILE}"
+```
+
+Make the script executable and schedule it:
+
+```bash
+chmod +x backup-teamspeak.sh
+
+# Add to crontab for daily backups at 3 AM
+crontab -e
+0 3 * * * /path/to/backup-teamspeak.sh >> /var/log/teamspeak-backup.log 2>&1
+```
+
+<Tip>
+  Test your backup script manually before relying on automated execution.
+</Tip>
+
+### Bind Mount Backup
+
+If using bind mounts instead of volumes:
+
+```yaml docker-compose.yaml
+services:
+  teamspeak:
+    volumes:
+      - ./teamspeak-data:/var/tsserver
+```
+
+Backup is simplified:
+
+```bash
+# Stop server
+docker compose stop
+
+# Create backup
+tar czf teamspeak-backup-$(date +%Y%m%d).tar.gz teamspeak-data/
+
+# Restart server
+docker compose start
+```
+
+## Binary Installation Backup
+
+### Full Backup
+
+<Steps>
+  <Step title="Stop the server">
+    <Tabs>
+      <Tab title="Linux">
+        ```bash
+        # If using systemd
+        sudo systemctl stop teamspeak
+
+        # Or if running directly
+        pkill tsserver
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```powershell
+        # If running as service
+        Stop-Service TeamSpeak6
+
+        # Or stop the process
+        Stop-Process -Name tsserver
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Create backup">
+    <Tabs>
+      <Tab title="Linux">
+        ```bash
+        # Backup entire server directory
+        tar czf teamspeak-backup-$(date +%Y%m%d).tar.gz \
+          /opt/teamspeak/ \
+          --exclude='/opt/teamspeak/logs' \
+          --exclude='/opt/teamspeak/crashdumps'
+
+        # Or copy to backup location
+        rsync -av --exclude='logs' --exclude='crashdumps' \
+          /opt/teamspeak/ \
+          /backups/teamspeak-$(date +%Y%m%d)/
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```powershell
+        # Create compressed backup
+        Compress-Archive -Path "C:\TeamSpeak" `
+          -DestinationPath "C:\Backups\teamspeak-backup-$(Get-Date -Format 'yyyyMMdd').zip" `
+          -CompressionLevel Optimal
+
+        # Or use robocopy
+        robocopy "C:\TeamSpeak" "C:\Backups\teamspeak-$(Get-Date -Format 'yyyyMMdd')" /MIR /XD logs crashdumps
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Restart the server">
+    <Tabs>
+      <Tab title="Linux">
+        ```bash
+        sudo systemctl start teamspeak
+        # Or
+        cd /opt/teamspeak && ./tsserver --accept-license
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```powershell
+        Start-Service TeamSpeak6
+        # Or
+        Start-Process -FilePath "C:\TeamSpeak\tsserver.exe"
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Database-Specific Backups
+
+### SQLite Backup
+
+For SQLite databases, use the SQLite backup command:
+
+```bash
+# Online backup (server can keep running)
+sqlite3 /var/tsserver/ts6server.sqlite ".backup /backups/ts6server-$(date +%Y%m%d).sqlite"
+
+# Verify backup integrity
+sqlite3 /backups/ts6server-$(date +%Y%m%d).sqlite "PRAGMA integrity_check;"
+```
+
+<Note>
+  SQLite's `.backup` command creates a consistent backup even while the server is running, but stopping the server is still recommended for critical backups.
+</Note>
+
+### MariaDB Backup
+
+For MariaDB databases, use mysqldump:
+
+<Steps>
+  <Step title="Create database backup">
+    ```bash
+    # Full database backup
+    mysqldump -h localhost -u teamspeak -p teamspeak \
+      --single-transaction \
+      --routines \
+      --triggers \
+      --events \
+      > teamspeak-db-$(date +%Y%m%d).sql
+
+    # Compress the backup
+    gzip teamspeak-db-$(date +%Y%m%d).sql
+    ```
+  </Step>
+  
+  <Step title="Backup with credentials file">
+    Create a credentials file for automated backups:
+    
+    ```ini ~/.my.cnf
+    [client]
+    user=teamspeak
+    password=your_password
+    host=localhost
+    ```
+    
+    ```bash
+    chmod 600 ~/.my.cnf
+    
+    # Backup without password prompt
+    mysqldump teamspeak \
+      --single-transaction \
+      --routines \
+      --triggers \
+      > teamspeak-db-$(date +%Y%m%d).sql
+    ```
+  </Step>
+  
+  <Step title="Automated MariaDB backup script">
+    ```bash backup-mariadb.sh
+    #!/bin/bash
+    
+    BACKUP_DIR="/backups/teamspeak-db"
+    DB_NAME="teamspeak"
+    RETENTION_DAYS=30
+    
+    mkdir -p "${BACKUP_DIR}"
+    
+    mysqldump "${DB_NAME}" \
+      --single-transaction \
+      --routines \
+      --triggers \
+      | gzip > "${BACKUP_DIR}/teamspeak-db-$(date +%Y%m%d-%H%M%S).sql.gz"
+    
+    find "${BACKUP_DIR}" -name "*.sql.gz" -mtime +${RETENTION_DAYS} -delete
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Always use `--single-transaction` for InnoDB tables to ensure consistent backups without locking tables.
+</Warning>
+
+### Docker MariaDB Backup
+
+For MariaDB running in Docker:
+
+```bash
+# Backup from Docker container
+docker exec teamspeak-mariadb mysqldump \
+  -u teamspeak -p teamspeak \
+  --single-transaction \
+  --routines \
+  > teamspeak-db-$(date +%Y%m%d).sql
+
+# Or access via docker compose
+docker compose exec mariadb mysqldump \
+  -u teamspeak -p teamspeak \
+  --single-transaction \
+  > teamspeak-db-$(date +%Y%m%d).sql
+```
+
+## Restore Procedures
+
+### Restore Docker Volume
+
+<Steps>
+  <Step title="Stop the container">
+    ```bash
+    docker compose stop teamspeak-server
+    ```
+  </Step>
+  
+  <Step title="Restore from backup">
+    ```bash
+    # Extract backup to volume
+    docker run --rm \
+      -v teamspeak-data:/data \
+      -v $(pwd):/backup \
+      alpine sh -c "rm -rf /data/* && tar xzf /backup/teamspeak-backup-YYYYMMDD-HHMMSS.tar.gz -C /data"
+    ```
+    
+    <Warning>
+      This command deletes all existing data in the volume before restoring. Ensure you have the correct backup file.
+    </Warning>
+  </Step>
+  
+  <Step title="Restart the container">
+    ```bash
+    docker compose start teamspeak-server
+    
+    # Verify server starts correctly
+    docker logs -f teamspeak-server
+    ```
+  </Step>
+</Steps>
+
+### Restore Binary Installation
+
+<Steps>
+  <Step title="Stop the server">
+    ```bash
+    sudo systemctl stop teamspeak
+    ```
+  </Step>
+  
+  <Step title="Backup current installation">
+    ```bash
+    # Safety backup of current state
+    mv /opt/teamspeak /opt/teamspeak-old-$(date +%Y%m%d)
+    ```
+  </Step>
+  
+  <Step title="Restore from backup">
+    ```bash
+    # Extract backup
+    tar xzf teamspeak-backup-YYYYMMDD.tar.gz -C /opt/
+    
+    # Or restore from rsync backup
+    rsync -av /backups/teamspeak-YYYYMMDD/ /opt/teamspeak/
+    ```
+  </Step>
+  
+  <Step title="Set permissions">
+    ```bash
+    chown -R tsserver:tsserver /opt/teamspeak
+    chmod +x /opt/teamspeak/tsserver
+    ```
+  </Step>
+  
+  <Step title="Restart the server">
+    ```bash
+    sudo systemctl start teamspeak
+    
+    # Check status
+    sudo systemctl status teamspeak
+    ```
+  </Step>
+</Steps>
+
+### Restore SQLite Database
+
+```bash
+# Stop server
+sudo systemctl stop teamspeak
+
+# Restore database file
+cp /backups/ts6server-YYYYMMDD.sqlite /var/tsserver/ts6server.sqlite
+
+# Verify integrity
+sqlite3 /var/tsserver/ts6server.sqlite "PRAGMA integrity_check;"
+
+# Set permissions
+chown tsserver:tsserver /var/tsserver/ts6server.sqlite
+
+# Restart server
+sudo systemctl start teamspeak
+```
+
+### Restore MariaDB Database
+
+<Steps>
+  <Step title="Stop the TeamSpeak server">
+    ```bash
+    # Stop to prevent writes during restore
+    sudo systemctl stop teamspeak
+    ```
+  </Step>
+  
+  <Step title="Drop and recreate database">
+    ```sql
+    mysql -u root -p
+    
+    DROP DATABASE teamspeak;
+    CREATE DATABASE teamspeak CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    GRANT ALL PRIVILEGES ON teamspeak.* TO 'teamspeak'@'%';
+    FLUSH PRIVILEGES;
+    EXIT;
+    ```
+  </Step>
+  
+  <Step title="Restore from backup">
+    ```bash
+    # Restore from uncompressed backup
+    mysql -u root -p teamspeak < teamspeak-db-YYYYMMDD.sql
+    
+    # Or from compressed backup
+    gunzip < teamspeak-db-YYYYMMDD.sql.gz | mysql -u root -p teamspeak
+    ```
+  </Step>
+  
+  <Step title="Restart TeamSpeak server">
+    ```bash
+    sudo systemctl start teamspeak
+    
+    # Verify connection
+    tail -f /var/tsserver/logs/ts6server_*.log
+    ```
+  </Step>
+</Steps>
+
+## Disaster Recovery
+
+### Complete System Recovery
+
+<Steps>
+  <Step title="Prepare new server">
+    - Install the same OS as the original server
+    - Install Docker or TeamSpeak binary
+    - Install any required dependencies
+  </Step>
+  
+  <Step title="Restore configuration">
+    ```bash
+    # Copy docker-compose.yaml or tsserver.yaml
+    # Restore license key
+    cp licensekey.dat /opt/teamspeak/
+    ```
+  </Step>
+  
+  <Step title="Restore data">
+    Follow the appropriate restore procedure for your installation type:
+    - [Docker Volume Restore](#restore-docker-volume)
+    - [Binary Installation Restore](#restore-binary-installation)
+    - [Database Restore](#restore-mariadb-database)
+  </Step>
+  
+  <Step title="Verify and test">
+    - Start the server
+    - Check logs for errors
+    - Connect with TeamSpeak client
+    - Verify channels, permissions, and files
+  </Step>
+</Steps>
+
+### Migration to New Server
+
+Use backups to migrate to a new server:
+
+<Steps>
+  <Step title="Create backup on old server">
+    Follow standard backup procedures for your installation type.
+  </Step>
+  
+  <Step title="Set up new server">
+    Install TeamSpeak 6 Server on the new system with the same configuration.
+  </Step>
+  
+  <Step title="Transfer backup files">
+    ```bash
+    # Copy via SCP
+    scp teamspeak-backup-*.tar.gz user@newserver:/backups/
+    
+    # Or use rsync
+    rsync -avz /backups/ user@newserver:/backups/
+    ```
+  </Step>
+  
+  <Step title="Restore on new server">
+    Follow the restore procedures on the new server.
+  </Step>
+  
+  <Step title="Update DNS and firewall">
+    - Update DNS records to point to new server IP
+    - Configure firewall rules on new server
+    - Test connectivity
+  </Step>
+</Steps>
+
+<Tip>
+  Run both servers in parallel during migration to minimize downtime. Switch DNS once you've verified the new server.
+</Tip>
+
+## Backup Best Practices
+
+<Steps>
+  <Step title="Regular schedule">
+    - Daily backups for production servers
+    - Weekly backups for development servers
+    - Before any major changes or updates
+  </Step>
+  
+  <Step title="Multiple locations">
+    Store backups in at least two locations:
+    - Local storage for quick recovery
+    - Remote storage for disaster recovery
+    - Cloud storage (S3, Google Cloud, Azure)
+  </Step>
+  
+  <Step title="Test restores regularly">
+    ```bash
+    # Quarterly restore testing
+    # 1. Restore to test environment
+    # 2. Verify data integrity
+    # 3. Test server functionality
+    # 4. Document any issues
+    ```
+  </Step>
+  
+  <Step title="Retention policy">
+    - Keep daily backups for 7 days
+    - Keep weekly backups for 4 weeks
+    - Keep monthly backups for 12 months
+    - Keep yearly backups indefinitely (if required)
+  </Step>
+  
+  <Step title="Security">
+    ```bash
+    # Encrypt backups
+    gpg --encrypt --recipient admin@example.com \
+      teamspeak-backup-YYYYMMDD.tar.gz
+    
+    # Set restrictive permissions
+    chmod 600 teamspeak-backup-*.tar.gz
+    ```
+  </Step>
+</Steps>
+
+## Cloud Backup Solutions
+
+### AWS S3 Backup
+
+```bash
+# Install AWS CLI
+apt-get install awscli
+
+# Configure credentials
+aws configure
+
+# Upload backup to S3
+aws s3 cp teamspeak-backup-$(date +%Y%m%d).tar.gz \
+  s3://my-backups/teamspeak/ \
+  --storage-class STANDARD_IA
+
+# Automated backup script with S3
+#!/bin/bash
+BACKUP_FILE="teamspeak-backup-$(date +%Y%m%d).tar.gz"
+# ... create backup ...
+aws s3 cp "${BACKUP_FILE}" s3://my-backups/teamspeak/
+rm "${BACKUP_FILE}"  # Remove local copy after upload
+```
+
+### Backup to Remote Server
+
+```bash
+# Backup via SSH
+tar czf - /var/tsserver | ssh user@backup-server "cat > /backups/teamspeak-$(date +%Y%m%d).tar.gz"
+
+# Automated backup with rsync
+rsync -avz --delete \
+  /var/tsserver/ \
+  user@backup-server:/backups/teamspeak/
+```
+
+<Note>
+  Consider using automated backup solutions like Duplicity, Borg, or Restic for advanced features like encryption, compression, and incremental backups.
+</Note>
+
+## Troubleshooting
+
+### Backup Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Backup file too large | Including logs and crash dumps | Exclude unnecessary directories |
+| Permission denied | Insufficient access rights | Run as root or use appropriate user |
+| Database locked | SQLite database in use | Stop server before backup |
+| Incomplete backup | Disk space full | Check available space before backup |
+
+### Restore Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Server won't start | Corrupted backup | Verify backup integrity, try older backup |
+| Permission errors | Wrong file ownership | Set correct permissions with `chown` |
+| Database errors | Incompatible version | Restore matching server version |
+| Missing files | Incomplete backup | Restore from complete backup |
+
+For additional assistance, see the [Logging](/operations/logging) page for troubleshooting guidance.

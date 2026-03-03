@@ -1,0 +1,325 @@
+---
+title: Server Settings
+description: Configure core TeamSpeak 6 Server settings and behavior
+icon: server
+---
+
+This page covers the essential server configuration parameters for TeamSpeak 6 Server. All parameters can be set via command-line flags, environment variables, or the YAML configuration file.
+
+## License Configuration
+
+Before running the server, you must accept the license agreement.
+
+<ParamField path="--accept-license" type="boolean" default="false">
+  Confirms you have read and accepted the server license agreement. Required to start the server.
+  
+  **Environment Variable:** `TSSERVER_LICENSE_ACCEPTED` (set to `1` or `accept`)
+</ParamField>
+
+<ParamField path="--license-path" type="string" default=".">
+  Directory path where the server will look for the `licensekey.dat` file.
+  
+  **Environment Variable:** `TSSERVER_LICENSE_PATH`
+</ParamField>
+
+<CodeGroup>
+```bash CLI
+./tsserver --accept-license --license-path /opt/teamspeak/license
+```
+
+```bash Environment
+export TSSERVER_LICENSE_ACCEPTED=accept
+export TSSERVER_LICENSE_PATH=/opt/teamspeak/license
+```
+
+```yaml YAML
+server:
+  accept-license: accept
+  license-path: /opt/teamspeak/license
+```
+</CodeGroup>
+
+<Warning>
+  The server will not start without accepting the license agreement. Read the license terms at `/opt/teamspeak/LICENSE` before accepting.
+</Warning>
+
+## Core Server Settings
+
+### Voice Port Configuration
+
+<ParamField path="--default-voice-port" type="integer" default="9987">
+  Permanently sets the default UDP voice port for the first virtual server created.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_DEFAULT_PORT`
+</ParamField>
+
+<ParamField path="--voice-ip" type="string" default="[0.0.0.0, ::]">
+  IP address(es) for the server to bind the voice port to. Supports both IPv4 and IPv6.
+  
+  **Environment Variable:** `TSSERVER_VOICE_IP`
+</ParamField>
+
+<CodeGroup>
+```bash CLI
+./tsserver --default-voice-port 9987 --voice-ip 0.0.0.0
+```
+
+```bash Environment
+export TSSERVER_DEFAULT_PORT=9987
+export TSSERVER_VOICE_IP=0.0.0.0
+```
+
+```yaml YAML
+server:
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+```
+</CodeGroup>
+
+### File Transfer Settings
+
+<ParamField path="--filetransfer-port" type="integer" default="30033">
+  The TCP port used for file transfers.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_PORT`
+</ParamField>
+
+<ParamField path="--filetransfer-ip" type="string" default="[0.0.0.0, ::]">
+  The address on which to listen for file transfer connections.
+  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_IP`
+</ParamField>
+
+<Warning>
+  **Docker Port Mapping:** When running inside a Docker container, ensure that the internal container port matches the external host port. File transfers rely on clients connecting directly to this port; mismatches will cause connectivity issues.
+  
+  Example: `-p 30033:30033/tcp` (not `-p 30034:30033/tcp`)
+</Warning>
+
+<CodeGroup>
+```bash CLI
+./tsserver --filetransfer-port 30033 --filetransfer-ip 0.0.0.0
+```
+
+```yaml Docker Compose
+services:
+  teamspeak:
+    ports:
+      - "30033:30033/tcp"  # Must match!
+    environment:
+      - TSSERVER_FILE_TRANSFER_PORT=30033
+```
+</CodeGroup>
+
+### Machine ID
+
+<ParamField path="--machine-id" type="string" default="">
+  A string to distinguish this instance from other instances using the same database. Useful when running multiple servers with a shared database.
+  
+  **Environment Variable:** `TSSERVER_MACHINE_ID`
+</ParamField>
+
+```bash
+export TSSERVER_MACHINE_ID=server-1
+```
+
+### Voice Processing Threads
+
+<ParamField path="--threads-voice-udp" type="integer" default="5">
+  Number of threads to use for voice processing. Increase for servers with high user counts.
+  
+  **Range:** 1-16  
+  **Environment Variable:** `TSSERVER_VOICE_UDP_THREADS`
+</ParamField>
+
+<Info>
+  For most deployments, the default of 5 threads is sufficient. Only increase this on high-capacity servers with many concurrent users.
+</Info>
+
+## Logging Configuration
+
+<ParamField path="--log-path" type="string" default="logs">
+  Path to the directory where log files are stored.
+  
+  **Environment Variable:** `TSSERVER_LOG_PATH`
+</ParamField>
+
+<ParamField path="--log-append" type="boolean" default="false">
+  Write one ever-growing log file per virtual server instead of rotating daily.
+  
+  **Environment Variable:** `TSSERVER_APPEND_LOGS`
+</ParamField>
+
+<CodeGroup>
+```bash CLI
+./tsserver --log-path /var/log/teamspeak --log-append
+```
+
+```yaml YAML
+server:
+  log-path: /var/log/teamspeak
+  log-append: 1
+```
+</CodeGroup>
+
+## Virtual Server Management
+
+<ParamField path="--no-default-virtual-server" type="boolean" default="false">
+  If specified, no default server is created even if no server exists in the database.
+  
+  **Environment Variable:** `TSSERVER_NO_DEFAULT_SERVER`
+</ParamField>
+
+<Info>
+  By default, TeamSpeak will create a default virtual server if none exists in the database. Use this flag if you plan to create servers manually via ServerQuery.
+</Info>
+
+## Advanced Settings
+
+### HTTP Proxy
+
+<ParamField path="--http-proxy" type="string" default="">
+  Proxy server used for external connections (e.g., license validation, accounting).
+  
+  **Environment Variable:** `TSSERVER_HTTP_PROXY`
+</ParamField>
+
+```bash
+export TSSERVER_HTTP_PROXY=http://proxy.example.com:8080
+```
+
+### Crash Dumps
+
+<ParamField path="--crashdump-path" type="string" default="crashdumps">
+  Path where crash dumps should be written for debugging purposes.
+  
+  **Environment Variable:** `TSSERVER_CRASHDUMP_PATH`
+</ParamField>
+
+### Daemon Mode
+
+<ParamField path="--daemon" type="boolean" default="false">
+  Run the server in the background (daemon mode). Linux only.
+  
+  **Environment Variable:** `TSSERVER_DAEMON`
+</ParamField>
+
+<ParamField path="--pid-file" type="string" default="">
+  File to write the process ID to when running in daemon mode.
+  
+  **Environment Variable:** `TSSERVER_PID_FILE`
+</ParamField>
+
+```bash
+./tsserver --daemon --pid-file /var/run/tsserver.pid
+```
+
+### Performance Options
+
+<ParamField path="--hints-enabled" type="boolean" default="false">
+  Enable permission hints. Can impact performance on large servers with complex permission structures.
+  
+  **Environment Variable:** `TSSERVER_HINTS_ENABLED`
+</ParamField>
+
+### GeoIP Database
+
+<ParamField path="--maxmind-db-path" type="string" default="">
+  Path to the MaxMind GeoIP database for geographic client information.
+  
+  **Environment Variable:** `TSSERVER_MAXMIND_DB_PATH`
+</ParamField>
+
+```bash
+export TSSERVER_MAXMIND_DB_PATH=/opt/teamspeak/GeoLite2-City.mmdb
+```
+
+### Administrative Domain
+
+<ParamField path="--administrative-domain" type="string" default="">
+  Administrative domain for internal or regulatory identification purposes.
+  
+  **Environment Variable:** `TSSERVER_ADMINISTRATIVE_DOMAIN`
+</ParamField>
+
+## Configuration File Management
+
+<ParamField path="--config-file" type="string" default="tsserver.yaml">
+  Specifies the configuration file to load.
+  
+  **Environment Variable:** `TSSERVER_CONFIG_FILE`
+</ParamField>
+
+<ParamField path="--write-config-file" type="boolean" default="false">
+  Writes the current configuration (from CLI flags and environment variables) to the config file.
+</ParamField>
+
+```bash
+# Generate config file from current settings
+./tsserver --accept-license --default-voice-port 9987 --write-config-file
+```
+
+## Complete Example
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        ports:
+          - "9987:9987/udp"
+          - "30033:30033/tcp"
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_VOICE_IP=0.0.0.0
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+          - TSSERVER_LOG_PATH=/var/tsserver/logs
+          - TSSERVER_VOICE_UDP_THREADS=5
+        volumes:
+          - teamspeak-data:/var/tsserver
+    
+    volumes:
+      teamspeak-data:
+    ```
+  </Tab>
+  <Tab title="YAML Config">
+    ```yaml tsserver.yaml
+    server:
+      accept-license: accept
+      license-path: .
+      default-voice-port: 9987
+      voice-ip:
+        - 0.0.0.0
+        - "::"
+      threads-voice-udp: 5
+      log-path: logs
+      log-append: 0
+      filetransfer-port: 30033
+      filetransfer-ip:
+        - 0.0.0.0
+        - "::"
+      crashdump-path: crashdumps
+      no-default-virtual-server: 0
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    Set up SQLite or MariaDB
+  </Card>
+  <Card title="Ports & Networking" icon="network-wired" href="/configuration/ports-networking">
+    Configure ServerQuery and networking
+  </Card>
+</CardGroup>

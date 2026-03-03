@@ -1,0 +1,589 @@
+---
+title: YAML Configuration File
+description: Complete reference for the tsserver.yaml configuration file structure
+icon: file-code
+---
+
+The `tsserver.yaml` file provides a structured way to configure your TeamSpeak 6 Server. This page documents the complete file structure with all available options.
+
+## Using the Configuration File
+
+Specify the configuration file when starting the server:
+
+```bash
+./tsserver --config-file tsserver.yaml
+```
+
+Or via environment variable:
+
+```bash
+export TSSERVER_CONFIG_FILE=tsserver.yaml
+./tsserver
+```
+
+<Info>
+  You can generate a YAML configuration file from your current settings using `./tsserver --write-config-file`
+</Info>
+
+## Complete YAML Structure
+
+Here's a complete example showing all available configuration sections:
+
+```yaml tsserver.yaml
+server:
+  # License configuration
+  accept-license: accept
+  license-path: .
+  
+  # Voice server settings
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  threads-voice-udp: 5
+  
+  # File transfer settings
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  
+  # Server identification
+  machine-id: ""
+  
+  # Logging
+  log-path: logs
+  log-append: 0
+  
+  # Virtual server management
+  no-default-virtual-server: 0
+  
+  # Advanced options
+  http-proxy: ""
+  crashdump-path: crashdumps
+  clear-database: 0
+  no-permission-update: 0
+  
+  # Database configuration
+  database:
+    plugin: sqlite3
+    sql-path: /opt/tsserver/sql/
+    sql-create-path: /opt/tsserver/sql/create_sqlite/
+    client-keep-days: 30
+    
+    config:
+      skip-integrity-check: 0
+      host: 127.0.0.1
+      port: 5432
+      socket: ""
+      timeout: 10
+      name: teamspeak
+      username: ""
+      password: ""
+      connections: 10
+      log-queries: 0
+  
+  # ServerQuery configuration
+  query:
+    pool-size: 2
+    log-timing: 3600
+    ip-allow-list: query_ip_allowlist.txt
+    ip-block-list: query_ip_denylist.txt
+    admin-password: ""
+    log-commands: 0
+    skip-brute-force-check: 0
+    buffer-mb: 20
+    documentation-path: serverquerydocs
+    timeout: 300
+    
+    # SSH Query interface
+    ssh:
+      enable: 0
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: ssh_host_rsa_key
+    
+    # HTTP Query interface
+    http:
+      enable: 0
+      port: 10080
+      ip:
+        - 0.0.0.0
+        - "::"
+    
+    # HTTPS Query interface
+    https:
+      enable: 0
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: ""
+      private-key: ""
+```
+
+## Configuration Sections
+
+### Server Section
+
+The top-level `server:` section contains all server-wide configuration.
+
+<Tabs>
+  <Tab title="Basic Server">
+    ```yaml
+    server:
+      accept-license: accept
+      license-path: .
+      default-voice-port: 9987
+      voice-ip:
+        - 0.0.0.0
+      filetransfer-port: 30033
+      filetransfer-ip:
+        - 0.0.0.0
+      log-path: logs
+      threads-voice-udp: 5
+    ```
+  </Tab>
+  <Tab title="With Logging">
+    ```yaml
+    server:
+      accept-license: accept
+      log-path: /var/log/teamspeak
+      log-append: 1
+      crashdump-path: /var/crash
+      default-voice-port: 9987
+    ```
+  </Tab>
+  <Tab title="Advanced">
+    ```yaml
+    server:
+      accept-license: accept
+      machine-id: server-01
+      threads-voice-udp: 8
+      no-default-virtual-server: 0
+      http-proxy: http://proxy.example.com:8080
+    ```
+  </Tab>
+</Tabs>
+
+### Database Section
+
+The `database:` section configures the database backend.
+
+<Tabs>
+  <Tab title="SQLite">
+    ```yaml
+    server:
+      database:
+        plugin: sqlite3
+        sql-path: /opt/tsserver/sql/
+        sql-create-path: /opt/tsserver/sql/create_sqlite/
+        client-keep-days: 30
+        
+        config:
+          skip-integrity-check: 0
+          log-queries: 0
+    ```
+  </Tab>
+  <Tab title="MariaDB">
+    ```yaml
+    server:
+      database:
+        plugin: mariadb
+        sql-path: /opt/tsserver/sql/
+        sql-create-path: /opt/tsserver/sql/create_mariadb/
+        client-keep-days: 30
+        
+        config:
+          host: mariadb
+          port: 3306
+          name: teamspeak
+          username: teamspeak
+          password: YourPasswordHere
+          connections: 10
+          timeout: 10
+          log-queries: 0
+    ```
+  </Tab>
+  <Tab title="MariaDB with Socket">
+    ```yaml
+    server:
+      database:
+        plugin: mariadb
+        sql-create-path: create_mariadb
+        
+        config:
+          socket: /var/run/mysqld/mysqld.sock
+          name: teamspeak
+          username: teamspeak
+          password: YourPasswordHere
+          connections: 15
+    ```
+  </Tab>
+</Tabs>
+
+### Query Section
+
+The `query:` section configures all ServerQuery interfaces.
+
+<Tabs>
+  <Tab title="HTTP Only">
+    ```yaml
+    server:
+      query:
+        pool-size: 2
+        timeout: 300
+        admin-password: secure_password
+        
+        http:
+          enable: 1
+          port: 10080
+          ip:
+            - 0.0.0.0
+    ```
+  </Tab>
+  <Tab title="HTTPS with Certificate">
+    ```yaml
+    server:
+      query:
+        pool-size: 4
+        timeout: 300
+        admin-password: secure_password
+        
+        https:
+          enable: 1
+          port: 10443
+          ip:
+            - 0.0.0.0
+          certificate: /etc/ssl/certs/teamspeak.crt
+          private-key: /etc/ssl/private/teamspeak.key
+    ```
+  </Tab>
+  <Tab title="SSH Query">
+    ```yaml
+    server:
+      query:
+        pool-size: 2
+        timeout: 300
+        admin-password: secure_password
+        
+        ssh:
+          enable: 1
+          port: 10022
+          ip:
+            - 0.0.0.0
+            - "::"
+          rsa-key: ssh_host_rsa_key
+    ```
+  </Tab>
+  <Tab title="All Interfaces">
+    ```yaml
+    server:
+      query:
+        pool-size: 4
+        timeout: 300
+        buffer-mb: 30
+        admin-password: secure_password
+        log-commands: 1
+        ip-allow-list: query_ip_allowlist.txt
+        
+        http:
+          enable: 1
+          port: 10080
+          ip:
+            - 0.0.0.0
+        
+        ssh:
+          enable: 1
+          port: 10022
+          ip:
+            - 0.0.0.0
+        
+        https:
+          enable: 1
+          port: 10443
+          ip:
+            - 0.0.0.0
+          certificate: /etc/ssl/certs/ts.crt
+          private-key: /etc/ssl/private/ts.key
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration Examples by Use Case
+
+### Small Server (SQLite)
+
+Ideal for personal or small community servers:
+
+```yaml tsserver.yaml
+server:
+  accept-license: accept
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+  log-path: logs
+  
+  database:
+    plugin: sqlite3
+    sql-create-path: create_sqlite
+    client-keep-days: 30
+  
+  query:
+    admin-password: your_secure_password
+    
+    http:
+      enable: 1
+      port: 10080
+```
+
+### Production Server (MariaDB)
+
+For large deployments with high availability requirements:
+
+```yaml tsserver.yaml
+server:
+  accept-license: accept
+  machine-id: ts-prod-01
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  threads-voice-udp: 8
+  filetransfer-port: 30033
+  log-path: /var/log/teamspeak
+  
+  database:
+    plugin: mariadb
+    sql-create-path: create_mariadb
+    client-keep-days: 90
+    
+    config:
+      host: db.internal.example.com
+      port: 3306
+      name: teamspeak_prod
+      username: ts_user
+      password: ${DB_PASSWORD}  # Use env var for sensitive data
+      connections: 20
+      timeout: 15
+  
+  query:
+    pool-size: 8
+    timeout: 600
+    buffer-mb: 50
+    admin-password: ${QUERY_PASSWORD}
+    log-commands: 1
+    ip-allow-list: query_ip_allowlist.txt
+    
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+      certificate: /etc/ssl/certs/teamspeak.crt
+      private-key: /etc/ssl/private/teamspeak.key
+```
+
+### Development/Testing Server
+
+For development and testing environments:
+
+```yaml tsserver.yaml
+server:
+  accept-license: accept
+  default-voice-port: 9987
+  filetransfer-port: 30033
+  log-path: logs
+  log-append: 1
+  
+  database:
+    plugin: sqlite3
+    sql-create-path: create_sqlite
+    client-keep-days: 7
+    
+    config:
+      log-queries: 1
+  
+  query:
+    admin-password: dev_password
+    skip-brute-force-check: 1
+    log-commands: 1
+    
+    http:
+      enable: 1
+      port: 10080
+    
+    ssh:
+      enable: 1
+      port: 10022
+```
+
+### Multi-Instance Configuration
+
+For running multiple TeamSpeak instances sharing a database:
+
+```yaml tsserver-instance1.yaml
+server:
+  accept-license: accept
+  machine-id: ts-instance-1
+  default-voice-port: 9987
+  filetransfer-port: 30033
+  
+  database:
+    plugin: mariadb
+    sql-create-path: create_mariadb
+    
+    config:
+      host: shared-db.example.com
+      port: 3306
+      name: teamspeak_shared
+      username: ts_user
+      password: shared_password
+      connections: 15
+  
+  query:
+    http:
+      enable: 1
+      port: 10080
+```
+
+```yaml tsserver-instance2.yaml
+server:
+  accept-license: accept
+  machine-id: ts-instance-2  # Different machine ID
+  default-voice-port: 9988   # Different ports
+  filetransfer-port: 30034
+  
+  database:
+    plugin: mariadb
+    sql-create-path: create_mariadb
+    
+    config:
+      host: shared-db.example.com
+      port: 3306
+      name: teamspeak_shared  # Same database
+      username: ts_user
+      password: shared_password
+      connections: 15
+  
+  query:
+    http:
+      enable: 1
+      port: 10081  # Different query port
+```
+
+## Boolean Values
+
+Boolean flags in YAML accept multiple formats:
+
+```yaml
+# All equivalent to "true"
+enable: 1
+enable: true
+enable: yes
+enable: on
+
+# All equivalent to "false"
+enable: 0
+enable: false
+enable: no
+enable: off
+```
+
+<Info>
+  For consistency, we recommend using `1` for true and `0` for false in YAML configuration files.
+</Info>
+
+## IP Address Lists
+
+IP addresses can be specified as lists:
+
+```yaml
+# Single IP
+voice-ip:
+  - 0.0.0.0
+
+# IPv4 and IPv6
+voice-ip:
+  - 0.0.0.0
+  - "::"
+
+# Specific interface
+voice-ip:
+  - 192.168.1.10
+```
+
+## Environment Variable Substitution
+
+You can reference environment variables in the YAML file:
+
+```yaml
+server:
+  database:
+    config:
+      password: ${DB_PASSWORD}
+  
+  query:
+    admin-password: ${QUERY_ADMIN_PASSWORD}
+```
+
+Then set the variables before starting:
+
+```bash
+export DB_PASSWORD=secure_db_password
+export QUERY_ADMIN_PASSWORD=secure_query_password
+./tsserver --config-file tsserver.yaml
+```
+
+<Warning>
+  Always use environment variables or secrets management for sensitive data like passwords. Never commit passwords to version control.
+</Warning>
+
+## Validation
+
+To validate your YAML configuration without starting the server:
+
+```bash
+# The server will parse the config and report any errors
+./tsserver --config-file tsserver.yaml --help
+```
+
+## Converting from CLI/Environment to YAML
+
+You can generate a YAML file from your current CLI flags or environment variables:
+
+```bash
+# Set up your configuration
+export TSSERVER_LICENSE_ACCEPTED=accept
+export TSSERVER_DEFAULT_PORT=9987
+export TSSERVER_QUERY_HTTP_ENABLED=true
+
+# Generate YAML file
+./tsserver --write-config-file
+
+# This creates/updates tsserver.yaml with your current configuration
+```
+
+## Parameter Reference
+
+For detailed information about each parameter:
+
+<CardGroup cols={2}>
+  <Card title="Server Settings" icon="server" href="/configuration/server-settings">
+    Core server parameters and license configuration
+  </Card>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    SQLite and MariaDB options
+  </Card>
+  <Card title="Ports & Networking" icon="network-wired" href="/configuration/ports-networking">
+    Network ports and ServerQuery interfaces
+  </Card>
+  <Card title="Configuration Overview" icon="sliders" href="/configuration/overview">
+    Configuration methods and priority
+  </Card>
+</CardGroup>

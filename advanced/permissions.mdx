@@ -1,0 +1,314 @@
+---
+title: "Permission System"
+description: "Understanding and configuring TeamSpeak 6 Server's permission system"
+icon: "lock"
+---
+
+## Overview
+
+TeamSpeak 6 Server uses a sophisticated permission system to control what users can do within virtual servers. Permissions are organized hierarchically and can be assigned to server groups, channel groups, or individual clients.
+
+## Permission Basics
+
+The TeamSpeak permission system operates on several key principles:
+
+### Permission Values
+
+- Permissions are represented by numeric values
+- Higher values generally grant more privileges
+- A value of `0` typically means no permission
+- Negative values can be used to explicitly deny permissions
+
+### Permission Hierarchy
+
+Permissions are evaluated in order of specificity:
+
+1. **Client-specific permissions** (highest priority)
+2. **Channel group permissions**
+3. **Channel-specific client permissions**
+4. **Server group permissions**
+5. **Default permissions** (lowest priority)
+
+<Note>
+  When multiple permission sources apply, the highest permission value takes precedence.
+</Note>
+
+## Permission Updates
+
+When TeamSpeak 6 Server updates to a new version, permission defaults may change to accommodate new features or security improvements.
+
+### Automatic Permission Updates
+
+By default, the server automatically applies permission updates during version upgrades:
+
+<ParamField path="no-permission-update" type="boolean" default="false">
+  Prevents automatic permission updates during server upgrades.
+  
+  **Environment Variable:** `TSSERVER_SKIP_PERMISSION_UPDATE`
+  
+  ```yaml
+  server:
+    no-permission-update: 0
+  ```
+  
+  ```bash
+  ./tsserver --no-permission-update
+  ```
+</ParamField>
+
+<Warning>
+  Disabling permission updates may prevent new features from working correctly. Only use this option if you have heavily customized permissions and want to manually review changes before applying them.
+</Warning>
+
+### Manual Permission Management
+
+If you disable automatic updates, you'll need to manually apply permission changes:
+
+1. Review the changelog for permission-related changes
+2. Test permission updates in a staging environment
+3. Apply changes using Server Query commands
+4. Document custom permission configurations
+
+## Permission Hints
+
+Permission hints provide detailed information about why a client has or lacks specific permissions. This feature helps administrators debug permission issues.
+
+### Enabling Permission Hints
+
+<ParamField path="hints-enabled" type="boolean" default="false">
+  Enables permission hints for debugging permission issues.
+  
+  **Environment Variable:** `TSSERVER_HINTS_ENABLED`
+  
+  ```yaml
+  server:
+    hints-enabled: 0
+  ```
+  
+  ```bash
+  ./tsserver --hints-enabled
+  ```
+</ParamField>
+
+<Warning>
+  **Performance Impact:** Enabling permission hints increases CPU and memory usage, especially on servers with many clients. Only enable this feature when actively debugging permission problems.
+</Warning>
+
+### When to Use Permission Hints
+
+Enable permission hints when:
+
+- Users report unexpected permission denials
+- Debugging complex permission hierarchies
+- Setting up new server groups or channel groups
+- Troubleshooting permission inheritance issues
+
+### Reading Permission Hints
+
+With hints enabled, permission denial messages include:
+
+- Which permission was checked
+- The current permission value
+- Where the permission value came from (server group, channel group, etc.)
+- Why the permission was insufficient
+
+<Tip>
+  Disable permission hints once you've resolved the issue to restore optimal performance.
+</Tip>
+
+## Common Permission Scenarios
+
+### Server Administrator Setup
+
+Create a server administrator group with elevated permissions:
+
+```bash
+# Create server group
+servergroupadd name="Server Admin"
+
+# Assign admin permissions
+servergroupaddperm sgid=6 permsid=b_serverinstance_modify_settings permvalue=1
+servergroupaddperm sgid=6 permsid=b_virtualserver_modify_maxclients permvalue=1
+
+# Add user to group
+servergroupaddclient sgid=6 cldbid=2
+```
+
+### Channel Moderator Setup
+
+Grant channel-specific permissions to moderators:
+
+```bash
+# Create channel group
+channelgroupadd name="Moderator"
+
+# Assign channel permissions
+channelgroupaddperm cgid=5 permsid=i_channel_needed_modify_power permvalue=75
+channelgroupaddperm cgid=5 permsid=i_channel_needed_delete_power permvalue=75
+
+# Assign user to channel group
+setclientchannelgroup cgid=5 cid=1 cldbid=2
+```
+
+### Guest Access
+
+Create limited permissions for guests:
+
+```bash
+# Modify guest server group
+servergroupaddperm sgid=8 permsid=i_channel_needed_join_power permvalue=0
+servergroupaddperm sgid=8 permsid=b_channel_join_permanent permvalue=0
+```
+
+## Permission Types
+
+### Server Permissions
+
+Control server-wide capabilities:
+
+- `b_serverinstance_*` - Instance-level administration
+- `b_virtualserver_*` - Virtual server management
+- `i_client_needed_*` - Client interaction requirements
+
+### Channel Permissions
+
+Control channel-related actions:
+
+- `b_channel_create_*` - Channel creation rights
+- `b_channel_modify_*` - Channel modification rights
+- `b_channel_delete_*` - Channel deletion rights
+- `i_channel_needed_*` - Required power levels for channel operations
+
+### Client Permissions
+
+Control client-specific capabilities:
+
+- `i_client_talk_power` - Required power to speak
+- `i_client_whisper_power` - Required power to whisper
+- `b_client_*` - Various client capabilities
+
+### File Transfer Permissions
+
+Control file transfer operations:
+
+- `b_ft_upload_*` - Upload permissions
+- `b_ft_download_*` - Download permissions
+- `i_ft_file_upload_power` - Required power to upload
+- `i_ft_needed_file_upload_power` - Minimum power level
+
+## Best Practices
+
+### Permission Design
+
+1. **Start restrictive:** Begin with minimal permissions and add as needed
+2. **Use groups:** Assign permissions to groups rather than individual users
+3. **Document changes:** Keep records of custom permission configurations
+4. **Test thoroughly:** Verify permissions in a test environment before production
+
+### Security Considerations
+
+- Limit the number of users with server administration permissions
+- Regularly audit permission assignments
+- Use channel-specific permissions to compartmentalize access
+- Review permission logs for suspicious activity
+
+### Performance Optimization
+
+- Keep permission hierarchies as simple as possible
+- Avoid excessive client-specific permissions
+- Disable permission hints in production
+- Use server groups for broad permission sets
+- Use channel groups for location-specific permissions
+
+### Migration and Updates
+
+- Back up permission configurations before updates
+- Test permission changes in staging environment
+- Review changelog for permission-related changes
+- Consider enabling `no-permission-update` for critical production servers until tested
+
+## Troubleshooting
+
+### User Can't Perform Action
+
+1. **Enable permission hints** to see detailed permission information
+2. **Check server group membership:**
+   ```bash
+   servergroupsbyclientid cldbid=2
+   ```
+3. **Verify channel group assignment:**
+   ```bash
+   channelgroupclientlist cid=1
+   ```
+4. **Review client-specific permissions:**
+   ```bash
+   clientpermlist cldbid=2
+   ```
+
+### Permission Changes Not Taking Effect
+
+1. User may need to reconnect to refresh permissions
+2. Verify permission was applied to correct group or client
+3. Check for conflicting permissions with higher priority
+4. Review server logs for permission-related errors
+
+### Performance Issues with Permissions
+
+1. **Disable permission hints** if enabled:
+   ```yaml
+   server:
+     hints-enabled: 0
+   ```
+2. Simplify permission hierarchies
+3. Reduce number of client-specific permissions
+4. Consolidate similar permissions into groups
+
+## Server Query Permission Commands
+
+### List Permissions
+
+```bash
+# List all available permissions
+permissionlist
+
+# List server group permissions
+servergrouppermlist sgid=6
+
+# List channel group permissions
+channelgrouppermlist cgid=5
+
+# List client permissions
+clientpermlist cldbid=2
+```
+
+### Modify Permissions
+
+```bash
+# Add server group permission
+servergroupaddperm sgid=6 permsid=b_virtualserver_modify_name permvalue=1
+
+# Add channel group permission
+channelgroupaddperm cgid=5 permsid=i_channel_needed_join_power permvalue=50
+
+# Add client permission
+clientaddperm cldbid=2 permsid=b_client_ignore_antiflood permvalue=1
+```
+
+### Remove Permissions
+
+```bash
+# Remove server group permission
+servergroupdelperm sgid=6 permsid=b_virtualserver_modify_name
+
+# Remove channel group permission
+channelgroupdelperm cgid=5 permsid=i_channel_needed_join_power
+
+# Remove client permission
+clientdelperm cldbid=2 permsid=b_client_ignore_antiflood
+```
+
+## Related Topics
+
+- [Server Query Overview](/server-query/overview) - Learn about managing servers via Server Query
+- [Authentication](/server-query/authentication) - Secure your Server Query access
+- [Security](/advanced/security) - Additional security configuration options

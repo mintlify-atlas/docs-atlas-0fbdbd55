@@ -1,0 +1,281 @@
+---
+title: "Virtual Server Management"
+description: "Configure and manage multiple virtual servers on a single TeamSpeak 6 Server instance"
+icon: "server"
+---
+
+## Overview
+
+TeamSpeak 6 Server supports running multiple virtual servers on a single instance. Each virtual server operates independently with its own voice port, channels, users, and permissions. This allows you to host multiple communities or organizations from a single installation.
+
+## Default Virtual Server
+
+When you start TeamSpeak 6 Server for the first time, it automatically creates a default virtual server unless configured otherwise.
+
+### Automatic Creation
+
+By default, the server creates the first virtual server on port **9987** (UDP) if no virtual servers exist in the database.
+
+<ParamField path="default-voice-port" type="integer" default="9987">
+  Sets the UDP voice port for the first virtual server created automatically.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_DEFAULT_PORT`
+  
+  ```yaml
+  server:
+    default-voice-port: 9987
+  ```
+</ParamField>
+
+### Disabling Automatic Creation
+
+You can prevent the server from automatically creating a default virtual server:
+
+<ParamField path="no-default-virtual-server" type="boolean" default="false">
+  When enabled, no default virtual server is created even if the database is empty.
+  
+  **Environment Variable:** `TSSERVER_NO_DEFAULT_SERVER`
+  
+  ```yaml
+  server:
+    no-default-virtual-server: 1
+  ```
+  
+  ```bash
+  ./tsserver --no-default-virtual-server
+  ```
+</ParamField>
+
+<Note>
+  If you disable automatic virtual server creation, you'll need to manually create virtual servers using Server Query commands.
+</Note>
+
+## Voice Port Configuration
+
+Each virtual server requires its own UDP port for voice communication.
+
+### Binding IP Addresses
+
+<ParamField path="voice-ip" type="string[]" default="[0.0.0.0, ::]">
+  IP addresses for the server to bind voice ports to. Supports both IPv4 and IPv6.
+  
+  **Environment Variable:** `TSSERVER_VOICE_IP`
+  
+  ```yaml
+  server:
+    voice-ip:
+      - 0.0.0.0
+      - "::"
+  ```
+  
+  ```bash
+  ./tsserver --voice-ip 0.0.0.0 --voice-ip "::"
+  ```
+</ParamField>
+
+<Tip>
+  Binding to `0.0.0.0` (IPv4) and `::` (IPv6) allows the server to accept connections on all network interfaces.
+</Tip>
+
+## Multi-Instance Setups
+
+When running multiple TeamSpeak 6 Server instances that share the same database, you must use the `machine-id` parameter to distinguish between instances.
+
+### Machine ID
+
+<ParamField path="machine-id" type="string">
+  A unique identifier string to distinguish this server instance from others using the same database.
+  
+  **Environment Variable:** `TSSERVER_MACHINE_ID`
+  
+  ```yaml
+  server:
+    machine-id: "server-us-west"
+  ```
+  
+  ```bash
+  ./tsserver --machine-id "server-us-west"
+  ```
+</ParamField>
+
+<Warning>
+  **Required for shared database deployments:** When multiple server instances share a database, each instance MUST have a unique `machine-id`. Without this, virtual servers may not start correctly or may conflict with each other.
+</Warning>
+
+### Use Cases for Multi-Instance Setup
+
+- **Geographic distribution:** Run servers in different regions while maintaining centralized user data
+- **Load balancing:** Distribute virtual servers across multiple physical machines
+- **High availability:** Implement failover configurations with multiple instances
+- **Resource isolation:** Separate high-traffic virtual servers onto dedicated hardware
+
+### Example Multi-Instance Configuration
+
+**Server Instance 1 (US West):**
+```yaml
+server:
+  machine-id: "us-west-01"
+  default-voice-port: 9987
+  
+  database:
+    plugin: mariadb
+    host: db.example.com
+    name: teamspeak_shared
+    username: tsserver
+    password: "your-password"
+```
+
+**Server Instance 2 (EU Central):**
+```yaml
+server:
+  machine-id: "eu-central-01"
+  default-voice-port: 9987
+  
+  database:
+    plugin: mariadb
+    host: db.example.com
+    name: teamspeak_shared
+    username: tsserver
+    password: "your-password"
+```
+
+<Note>
+  Both instances can use the same voice ports because they run on different physical machines with different IP addresses.
+</Note>
+
+## Managing Virtual Servers
+
+Virtual servers are managed through the Server Query interface. Common operations include:
+
+### Creating Virtual Servers
+
+Use the Server Query `servercreate` command to create new virtual servers:
+
+```bash
+servercreate virtualserver_name=MyServer virtualserver_port=9988
+```
+
+### Starting and Stopping
+
+Virtual servers can be started and stopped individually:
+
+```bash
+# Start a virtual server
+serverstart sid=1
+
+# Stop a virtual server
+serverstop sid=1
+```
+
+### Listing Virtual Servers
+
+View all virtual servers on the instance:
+
+```bash
+serverlist
+```
+
+## File Transfer Configuration
+
+File transfers are shared across all virtual servers on an instance.
+
+<ParamField path="filetransfer-port" type="integer" default="30033">
+  TCP port used for file transfers across all virtual servers.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_PORT`
+  
+  ```yaml
+  server:
+    filetransfer-port: 30033
+  ```
+</ParamField>
+
+<ParamField path="filetransfer-ip" type="string[]" default="[0.0.0.0, ::]">
+  IP addresses to bind for file transfer connections.
+  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_IP`
+  
+  ```yaml
+  server:
+    filetransfer-ip:
+      - 0.0.0.0
+      - "::"
+  ```
+</ParamField>
+
+<Warning>
+  **Docker deployments:** The internal container port MUST match the external host port for file transfers. Port mismatches will cause connectivity issues because clients connect directly to the advertised port.
+</Warning>
+
+## Best Practices
+
+### Port Assignment
+
+- Use a consistent port range for virtual servers (e.g., 9987-9999)
+- Document which ports are assigned to which communities
+- Leave gaps between port ranges for future expansion
+
+### Machine ID Naming
+
+- Use descriptive names that indicate location or purpose
+- Include region codes: `us-west-01`, `eu-central-02`
+- Use environment indicators: `prod-server-01`, `staging-server-01`
+- Maintain a registry of machine IDs in your infrastructure documentation
+
+### Database Considerations
+
+- Use a dedicated database for production deployments
+- For multi-instance setups, use MariaDB or PostgreSQL instead of SQLite
+- Ensure database connections are sufficient for all instances
+- Monitor connection pool usage across instances
+
+### Monitoring
+
+- Track virtual server status across all instances
+- Monitor port allocation and availability
+- Set up alerts for virtual server failures
+- Log virtual server start/stop events for audit trails
+
+## Troubleshooting
+
+### Virtual Server Won't Start
+
+1. **Check port availability:** Ensure the voice port isn't already in use
+   ```bash
+   netstat -tulpn | grep 9987
+   ```
+
+2. **Verify machine-id:** In multi-instance setups, confirm each instance has a unique ID
+
+3. **Review logs:** Check server logs for specific error messages
+   ```bash
+   tail -f logs/ts3server_*.log
+   ```
+
+### Port Conflicts
+
+If multiple virtual servers are assigned the same port:
+
+1. Stop the conflicting virtual servers
+2. Reassign ports using Server Query
+3. Restart the virtual servers with new port assignments
+
+### Database Connection Issues
+
+In multi-instance deployments:
+
+1. Verify database connectivity from each instance
+2. Check that the database connection pool is large enough
+3. Ensure firewall rules allow database connections
+4. Confirm each instance uses the correct machine-id
+
+## Related Topics
+
+- [Database Configuration](/configuration/database) - Configure shared databases for multi-instance setups
+- [Ports and Networking](/configuration/ports-networking) - Network configuration and firewall rules
+- [Server Query](/server-query/overview) - Manage virtual servers via Server Query
+- [Performance Tuning](/advanced/performance-tuning) - Optimize server performance for multiple virtual servers

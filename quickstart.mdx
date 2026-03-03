@@ -1,80 +1,526 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start Guide
+description: Get your TeamSpeak 6 Server up and running in minutes
 ---
 
-## Get started in three steps
+## Get Started in Minutes
 
-Get your documentation site running locally and make your first customization.
+This guide will help you launch your first TeamSpeak 6 Server using Docker - the fastest and most reliable way to get started.
 
-### Step 1: Set up your local environment
+<Info>
+New to Docker? Docker provides an isolated environment that makes setup simple and consistent across all platforms. [Install Docker](https://docs.docker.com/engine/install/) if you haven't already.
+</Info>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+## Prerequisites
 
-### Step 2: Deploy your changes
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+- Docker installed on your system ([Installation Guide](https://docs.docker.com/engine/install/))
+- Port 9987 (UDP) and 30033 (TCP) available on your system
+- Basic command line knowledge
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Quick Start with Docker
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Run the Server">
+    Launch your TeamSpeak 6 Server with a single command:
 
-### Step 3: Go live
+    ```bash
+    docker run -d \
+      --name teamspeak-server \
+      -p 9987:9987/udp \
+      -p 30033:30033 \
+      -e TSSERVER_LICENSE_ACCEPTED=accept \
+      -v teamspeak-data:/var/tsserver/ \
+      teamspeaksystems/teamspeak6-server:latest
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    This command:
+    - Runs the server in detached mode (`-d`)
+    - Names the container `teamspeak-server`
+    - Opens port 9987/UDP for voice communication
+    - Opens port 30033/TCP for file transfers
+    - Accepts the license agreement
+    - Creates a persistent volume for server data
+  </Step>
 
-## Next steps
+  <Step title="Retrieve Your Admin Credentials">
+    After the server starts, retrieve your ServerAdmin privilege key:
 
-Now that you have your docs running, explore these key features:
+    ```bash
+    docker logs teamspeak-server
+    ```
 
-<CardGroup cols={2}>
+    Look for output similar to:
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+    ```
+    ServerAdmin privilege key created: token=YOUR_PRIVILEGE_KEY_HERE
+    ```
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+    <Warning>
+    **Save this key immediately!** You'll need it to claim administrator privileges on your server. This key is only displayed once.
+    </Warning>
+  </Step>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+  <Step title="Connect to Your Server">
+    1. Download and install the [TeamSpeak 6 Client](https://teamspeak.com/en/downloads/)
+    2. Open the client and click "Add Server"
+    3. Enter your server details:
+       - **Address:** `localhost:9987` (or your server's IP)
+       - **Nickname:** Your preferred display name
+    4. Connect to the server
+    5. When prompted, use the privilege key from Step 2 to gain admin rights
+  </Step>
+</Steps>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+## Managing Your Server
 
-</CardGroup>
+Once your server is running, use these commands to manage it:
+
+<CodeGroup>
+
+```bash View Logs
+# Follow the live server logs
+docker logs -f teamspeak-server
+```
+
+```bash Stop Server
+# Stop the server gracefully
+docker stop teamspeak-server
+```
+
+```bash Start Server
+# Start the server again
+docker start teamspeak-server
+```
+
+```bash Restart Server
+# Restart in one command
+docker restart teamspeak-server
+```
+
+</CodeGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Your server data is stored in the `teamspeak-data` Docker volume, so it persists even when the container is stopped or removed.
 </Note>
+
+## Production Setup with Docker Compose
+
+For production deployments, we recommend using Docker Compose for easier management and configuration.
+
+<Steps>
+  <Step title="Create a docker-compose.yaml File">
+    Create a new file named `docker-compose.yaml` in your project directory:
+
+    <CodeGroup>
+
+    ```yaml SQLite (Simple)
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        ports:
+          - "9987:9987/udp"    # Default voice port
+          - "30033:30033/tcp"  # File transfer port
+          # - "10022:10022/tcp" # (Optional) ServerQuery SSH port
+          # - "10080:10080/tcp"  # (Optional) WebQuery port
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_VOICE_IP=0.0.0.0
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+          # - TSSERVER_QUERY_HTTP_ENABLED=true
+          # - TSSERVER_QUERY_SSH_ENABLED=false
+          # - TSSERVER_MACHINE_ID=my_unique_machine_id
+          # - TSSERVER_LOG_PATH=/var/tsserver/logs
+          # - TSSERVER_QUERY_ADMIN_PASSWORD=secretpassword
+        volumes:
+          - teamspeak-data:/var/tsserver
+
+    volumes:
+      teamspeak-data:
+        name: teamspeak-data
+    ```
+
+    ```yaml MariaDB (Production)
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        ports:
+          - "9987:9987/udp"   # Default voice port
+          - "30033:30033/tcp" # File transfer port
+          # - "10080:10080/tcp" # WebQuery port
+          # - "10022:10022/tcp" # SSHQuery port
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_VOICE_IP=0.0.0.0
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+          # - TSSERVER_QUERY_HTTP_ENABLED=true
+          # - TSSERVER_QUERY_SSH_ENABLED=true
+
+          # Database settings
+          - TSSERVER_DATABASE_PLUGIN=mariadb
+          - TSSERVER_DATABASE_SQL_CREATE_PATH=create_mariadb
+          - TSSERVER_DATABASE_HOST=mariadb
+          - TSSERVER_DATABASE_PORT=3306
+          - TSSERVER_DATABASE_NAME=teamspeak
+          - TSSERVER_DATABASE_USERNAME=teamspeak
+          - TSSERVER_DATABASE_PASSWORD=YourPasswordHere
+        volumes:
+          - teamspeak-data:/var/tsserver
+        depends_on:
+          mariadb:
+            condition: service_healthy
+
+      mariadb:
+        image: mariadb:latest
+        container_name: mariadb
+        environment:
+          - MYSQL_ROOT_PASSWORD=SuperSecretPassword
+          - MYSQL_DATABASE=teamspeak
+          - MYSQL_USER=teamspeak
+          - MYSQL_PASSWORD=YourPasswordHere
+        volumes:
+          - mariadb-data:/var/lib/mysql
+        restart: unless-stopped
+        healthcheck:
+          test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+          start_period: 10s
+          interval: 10s
+          timeout: 5s
+          retries: 3
+
+    volumes:
+      teamspeak-data:
+        name: teamspeak-data
+      mariadb-data:
+        name: mariadb-data
+    ```
+
+    </CodeGroup>
+
+    <Warning>
+    **Security:** Change the default passwords (`YourPasswordHere`, `SuperSecretPassword`) to strong, unique passwords before deploying!
+    </Warning>
+  </Step>
+
+  <Step title="Start Your Server">
+    Launch your server using Docker Compose:
+
+    ```bash
+    docker compose up -d
+    ```
+
+    Check the logs to retrieve your admin key:
+
+    ```bash
+    docker compose logs -f
+    ```
+  </Step>
+
+  <Step title="Manage with Docker Compose">
+    Use these commands to manage your deployment:
+
+    <CodeGroup>
+
+    ```bash Stop
+    docker compose stop
+    ```
+
+    ```bash Start
+    docker compose start
+    ```
+
+    ```bash Restart
+    docker compose restart
+    ```
+
+    ```bash View Logs
+    docker compose logs -f
+    ```
+
+    ```bash Stop & Remove
+    # Stops and removes containers (data is preserved)
+    docker compose down
+    ```
+
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Running on Native Systems
+
+If you prefer running the server directly without Docker:
+
+<Tabs>
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Make the Binary Executable">
+        ```bash
+        chmod +x tsserver
+        ```
+      </Step>
+
+      <Step title="Run the Server">
+        ```bash
+        ./tsserver --accept-license
+        ```
+
+        The server will start and display your ServerAdmin privilege key in the console.
+      </Step>
+
+      <Step title="Run in Background (Optional)">
+        To run the server as a daemon:
+
+        ```bash
+        ./tsserver --accept-license --daemon --pid-file /var/run/tsserver.pid
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open Command Prompt">
+        Navigate to the directory where you extracted the server files:
+
+        ```powershell
+        cd C:\path\to\teamspeak-server
+        ```
+      </Step>
+
+      <Step title="Run the Server">
+        ```powershell
+        tsserver.exe --accept-license
+        ```
+
+        The server will start and display your ServerAdmin privilege key in the console.
+      </Step>
+
+      <Step title="Keep the Window Open">
+        <Warning>
+        Don't close the console window - this will stop the server. To run the server as a Windows service, consider using a service wrapper like NSSM.
+        </Warning>
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Configuration Options
+
+Want to customize your server? You can configure it using:
+
+1. **Environment Variables** - Perfect for Docker deployments
+2. **Command-Line Flags** - Quick temporary changes
+3. **YAML Configuration File** - Best for persistent configuration
+
+<Tip>
+For a complete list of configuration options, see the [Configuration Guide](/configuration/overview) or run `./tsserver --help`
+</Tip>
+
+### Common Configuration Examples
+
+<CodeGroup>
+
+```bash Change Voice Port
+# Using environment variable (Docker)
+-e TSSERVER_DEFAULT_PORT=10000
+
+# Using command-line flag (Native)
+./tsserver --accept-license --default-voice-port 10000
+```
+
+```bash Enable Web Query
+# Using environment variable (Docker)
+-e TSSERVER_QUERY_HTTP_ENABLED=true
+-e TSSERVER_QUERY_HTTP_PORT=10080
+
+# Using command-line flag (Native)
+./tsserver --accept-license --query-http-enable --query-http-port 10080
+```
+
+```bash Set Admin Password
+# Using environment variable (Docker)
+-e TSSERVER_QUERY_ADMIN_PASSWORD=your_secure_password
+
+# Using command-line flag (Native)
+./tsserver --accept-license --query-admin-password your_secure_password
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port Already in Use">
+    If you see an error about ports being in use:
+
+    1. Check what's using the port:
+       ```bash
+       # Linux/Mac
+       sudo lsof -i :9987
+       
+       # Windows
+       netstat -ano | findstr :9987
+       ```
+
+    2. Either stop the conflicting service or change the TeamSpeak port:
+       ```bash
+       docker run -d \
+         --name teamspeak-server \
+         -p 10000:9987/udp \
+         -e TSSERVER_LICENSE_ACCEPTED=accept \
+         -v teamspeak-data:/var/tsserver/ \
+         teamspeaksystems/teamspeak6-server:latest
+       ```
+  </Accordion>
+
+  <Accordion title="Can't Connect to Server">
+    If you can't connect to your server:
+
+    1. Verify the server is running:
+       ```bash
+       docker ps
+       ```
+
+    2. Check the server logs:
+       ```bash
+       docker logs teamspeak-server
+       ```
+
+    3. Ensure your firewall allows UDP port 9987 and TCP port 30033
+
+    4. If connecting remotely, use your public IP address instead of `localhost`
+  </Accordion>
+
+  <Accordion title="Lost Admin Key">
+    If you lost your ServerAdmin privilege key:
+
+    1. You can set a custom admin password using an environment variable:
+       ```bash
+       docker run -d \
+         --name teamspeak-server \
+         -p 9987:9987/udp \
+         -p 30033:30033 \
+         -e TSSERVER_LICENSE_ACCEPTED=accept \
+         -e TSSERVER_QUERY_ADMIN_PASSWORD=your_secure_password \
+         -v teamspeak-data:/var/tsserver/ \
+         teamspeaksystems/teamspeak6-server:latest
+       ```
+
+    2. Use this password to authenticate via ServerQuery
+  </Accordion>
+
+  <Accordion title="Container Keeps Restarting">
+    If your Docker container keeps restarting:
+
+    1. Check the logs for errors:
+       ```bash
+       docker logs teamspeak-server
+       ```
+
+    2. Common issues:
+       - License not accepted (add `-e TSSERVER_LICENSE_ACCEPTED=accept`)
+       - Database connection issues (check MariaDB container is healthy)
+       - Port conflicts (change the port mappings)
+  </Accordion>
+</AccordionGroup>
+
+## Data Backup
+
+<Warning>
+**Important:** Always backup your server data before performing updates or major changes!
+</Warning>
+
+### Backup Docker Volume
+
+```bash
+# Create a backup of your server data
+docker run --rm \
+  -v teamspeak-data:/data \
+  -v $(pwd):/backup \
+  ubuntu tar czf /backup/teamspeak-backup-$(date +%Y%m%d).tar.gz /data
+```
+
+### Restore from Backup
+
+```bash
+# Restore data from backup
+docker run --rm \
+  -v teamspeak-data:/data \
+  -v $(pwd):/backup \
+  ubuntu tar xzf /backup/teamspeak-backup-YYYYMMDD.tar.gz -C /
+```
+
+## Cleaning Up
+
+If you need to remove your server completely:
+
+<CodeGroup>
+
+```bash Docker Run
+# Stop and remove the container
+docker rm -f teamspeak-server
+
+# Remove the data volume (WARNING: This deletes all server data!)
+docker volume rm teamspeak-data
+```
+
+```bash Docker Compose
+# Stop and remove containers
+docker compose down
+
+# Remove volumes (WARNING: This deletes all server data!)
+docker volume rm teamspeak-data mariadb-data
+```
+
+</CodeGroup>
+
+## Next Steps
+
+Now that your server is running:
+
+<CardGroup cols={2}>
+  <Card
+    title="Configure Your Server"
+    icon="gear"
+    href="/configuration"
+  >
+    Explore advanced configuration options
+  </Card>
+  
+  <Card
+    title="Server Query API"
+    icon="code"
+    href="/server-query"
+  >
+    Learn how to manage your server programmatically
+  </Card>
+  
+  <Card
+    title="Database Setup"
+    icon="database"
+    href="/database"
+  >
+    Configure MariaDB for production deployments
+  </Card>
+  
+  <Card
+    title="Best Practices"
+    icon="shield"
+    href="/best-practices"
+  >
+    Security and optimization tips
+  </Card>
+</CardGroup>
+
+<Tip>
+Have questions? Join the [TeamSpeak Community Forum](https://community.teamspeak.com/c/teamspeak-6-server/45) for help and discussions!
+</Tip>

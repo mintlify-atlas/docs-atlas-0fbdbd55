@@ -1,0 +1,464 @@
+---
+title: Server Query Authentication
+description: Configure authentication and manage credentials for Server Query access
+---
+
+All Server Query interfaces (HTTP, HTTPS, and SSH) require authentication to protect your TeamSpeak 6 server from unauthorized access. This guide covers how to set up and manage query authentication.
+
+## Admin Account
+
+The `serveradmin` account is the built-in administrative account for Server Query access. This account has full permissions to manage your TeamSpeak server via query commands.
+
+### Setting the Admin Password
+
+You can set the admin password using any of these methods:
+
+<CodeGroup>
+```bash Command Line
+./tsserver --query-admin-password "your-secure-password"
+```
+
+```bash Environment Variables
+export TSSERVER_QUERY_ADMIN_PASSWORD="your-secure-password"
+./tsserver
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    admin-password: "your-secure-password"
+```
+</CodeGroup>
+
+<Warning>
+The `--query-admin-password` parameter overrides any password stored in the database. This is useful for recovering access or enforcing a specific password.
+</Warning>
+
+### Password Requirements
+
+When setting a query admin password, follow these best practices:
+
+- Use at least 16 characters
+- Include a mix of uppercase, lowercase, numbers, and special characters
+- Avoid dictionary words or common patterns
+- Don't reuse passwords from other services
+- Store the password securely (password manager recommended)
+
+<Note>
+If you don't set an admin password explicitly, TeamSpeak 6 will generate one automatically on first startup and display it in the server logs.
+</Note>
+
+## First-Time Setup
+
+When you start your TeamSpeak 6 server for the first time:
+
+<Steps>
+  <Step title="Server Generates Password">
+    If no admin password is set, the server automatically generates a secure random password.
+  </Step>
+  
+  <Step title="Check Server Logs">
+    The auto-generated password appears in the server console output and logs:
+    
+    ```
+    ServerQuery Admin Password: AbCdEfGh1234XyZ!@#
+    ```
+    
+    <Warning>
+    This password is only displayed once. Save it immediately in a secure location.
+    </Warning>
+  </Step>
+  
+  <Step title="First Login">
+    Use the password to connect via your preferred query protocol:
+    
+    ```bash SSH
+    ssh -p 10022 serveradmin@your-server
+    Password: AbCdEfGh1234XyZ!@#
+    ```
+  </Step>
+  
+  <Step title="Change Password (Optional)">
+    For better security, set your own password:
+    
+    ```bash
+    ./tsserver --query-admin-password "your-custom-password"
+    ```
+  </Step>
+</Steps>
+
+## Authentication Methods by Protocol
+
+### SSH Query Authentication
+
+SSH query uses password authentication by default:
+
+```bash
+ssh -p 10022 serveradmin@your-server
+serveradmin@your-server's password: [enter password]
+```
+
+### HTTP/HTTPS Query Authentication
+
+HTTP and HTTPS queries typically use HTTP Basic Authentication:
+
+```bash cURL Example
+curl -u serveradmin:your-password http://your-server:10080/api/endpoint
+```
+
+```bash With Authorization Header
+curl -H "Authorization: Basic $(echo -n 'serveradmin:your-password' | base64)" \
+  http://your-server:10080/api/endpoint
+```
+
+## Password Management
+
+### Changing the Admin Password
+
+To change the admin password:
+
+<Steps>
+  <Step title="Stop the Server">
+    ```bash
+    # Stop the running server
+    pkill tsserver
+    ```
+  </Step>
+  
+  <Step title="Update Configuration">
+    Update your password using one of these methods:
+    
+    <CodeGroup>
+    ```bash Command Line
+    ./tsserver --query-admin-password "new-secure-password"
+    ```
+    
+    ```bash Environment Variable
+    export TSSERVER_QUERY_ADMIN_PASSWORD="new-secure-password"
+    ./tsserver
+    ```
+    
+    ```yaml tsserver.yaml
+    server:
+      query:
+        admin-password: "new-secure-password"
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Restart Server">
+    Start the server with the new password configuration.
+  </Step>
+  
+  <Step title="Verify Access">
+    Test that you can authenticate with the new password:
+    
+    ```bash
+    ssh -p 10022 serveradmin@your-server
+    ```
+  </Step>
+</Steps>
+
+### Resetting a Lost Password
+
+If you lose your admin password:
+
+<Steps>
+  <Step title="Stop the Server">
+    ```bash
+    pkill tsserver
+    ```
+  </Step>
+  
+  <Step title="Set New Password">
+    Use the `--query-admin-password` flag to override the database password:
+    
+    ```bash
+    ./tsserver --query-admin-password "recovered-password"
+    ```
+    
+    <Note>
+    This parameter overrides the database password, allowing you to regain access.
+    </Note>
+  </Step>
+  
+  <Step title="Update Configuration">
+    Add the new password to your configuration file to make it permanent:
+    
+    ```yaml tsserver.yaml
+    server:
+      query:
+        admin-password: "recovered-password"
+    ```
+  </Step>
+</Steps>
+
+## Security Configuration
+
+### IP-Based Access Control
+
+Restrict query access to specific IP addresses:
+
+<Steps>
+  <Step title="Create Allow List">
+    Create a file listing allowed IPs (one per line):
+    
+    ```txt query_ip_allowlist.txt
+    192.168.1.100
+    192.168.1.101
+    10.0.0.0/8
+    2001:db8::1
+    ```
+  </Step>
+  
+  <Step title="Create Block List">
+    Create a file listing blocked IPs:
+    
+    ```txt query_ip_denylist.txt
+    203.0.113.50
+    198.51.100.0/24
+    ```
+  </Step>
+  
+  <Step title="Configure Server">
+    Apply the IP lists:
+    
+    <CodeGroup>
+    ```bash Command Line
+    ./tsserver \
+      --query-ip-allow-list query_ip_allowlist.txt \
+      --query-ip-block-list query_ip_denylist.txt
+    ```
+    
+    ```yaml tsserver.yaml
+    server:
+      query:
+        ip-allow-list: query_ip_allowlist.txt
+        ip-block-list: query_ip_denylist.txt
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Note>
+- IPs in the **allow list** are exempt from flood protection
+- IPs in the **block list** are completely denied access
+- Both IPv4 and IPv6 addresses are supported
+- CIDR notation is supported for IP ranges
+</Note>
+
+### Brute Force Protection
+
+TeamSpeak 6 includes built-in brute force protection for query interfaces:
+
+```yaml Default (Enabled)
+server:
+  query:
+    skip-brute-force-check: 0
+```
+
+This protection automatically blocks IPs that make too many failed authentication attempts.
+
+<Warning>
+Only disable brute force protection in secure, controlled environments:
+
+```yaml Disabled (Not Recommended)
+server:
+  query:
+    skip-brute-force-check: 1
+```
+</Warning>
+
+### Query Command Logging
+
+Enable logging to monitor query activity:
+
+<CodeGroup>
+```bash Command Line
+./tsserver --query-log-commands
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    log-commands: 1
+    log-timing: 3600
+```
+</CodeGroup>
+
+With logging enabled, all query commands are written to the server logs for audit purposes.
+
+## Complete Security Example
+
+Here's a comprehensive security configuration:
+
+```yaml tsserver.yaml
+server:
+  query:
+    # Authentication
+    admin-password: "VerySecurePassword123!@#$%"
+    
+    # IP Access Control
+    ip-allow-list: query_ip_allowlist.txt
+    ip-block-list: query_ip_denylist.txt
+    
+    # Security Settings
+    skip-brute-force-check: 0
+    log-commands: 1
+    log-timing: 1800
+    
+    # Performance & Limits
+    pool-size: 4
+    timeout: 300
+    buffer-mb: 20
+    
+    # HTTPS Only (Most Secure)
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: /etc/ssl/certs/teamspeak-query.crt
+      private-key: /etc/ssl/private/teamspeak-query.key
+    
+    # SSH (Alternative Secure Option)
+    ssh:
+      enable: 1
+      port: 10022
+      ip:
+        - 0.0.0.0
+        - "::"
+      rsa-key: /etc/teamspeak/ssh_host_rsa_key
+    
+    # HTTP Disabled (Security Best Practice)
+    http:
+      enable: 0
+```
+
+## Environment-Specific Configurations
+
+### Development Environment
+
+Relaxed security for local development:
+
+```yaml tsserver.yaml
+server:
+  query:
+    admin-password: "dev-password"
+    skip-brute-force-check: 1
+    log-commands: 1
+    
+    http:
+      enable: 1
+      port: 10080
+      ip:
+        - 127.0.0.1
+```
+
+### Production Environment
+
+Maximum security for production:
+
+```yaml tsserver.yaml
+server:
+  query:
+    admin-password: "${TSSERVER_QUERY_ADMIN_PASSWORD}"
+    ip-allow-list: /etc/teamspeak/query_ip_allowlist.txt
+    ip-block-list: /etc/teamspeak/query_ip_denylist.txt
+    skip-brute-force-check: 0
+    log-commands: 1
+    log-timing: 3600
+    
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: /etc/ssl/certs/teamspeak-query.crt
+      private-key: /etc/ssl/private/teamspeak-query.key
+```
+
+<Note>
+In production, use environment variables for sensitive values like passwords instead of hardcoding them in configuration files.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Strong Passwords">
+    Always set a strong, unique password for the serveradmin account. Use a password manager to generate and store it securely.
+  </Step>
+  
+  <Step title="Prefer HTTPS/SSH">
+    Use HTTPS or SSH for query connections instead of plain HTTP, especially over the internet.
+  </Step>
+  
+  <Step title="Implement IP Restrictions">
+    Use allow lists to limit query access to known IP addresses or networks.
+  </Step>
+  
+  <Step title="Enable Logging">
+    Monitor query activity by enabling command logging and reviewing logs regularly.
+  </Step>
+  
+  <Step title="Keep Brute Force Protection Enabled">
+    Don't disable brute force protection unless absolutely necessary and only in secure environments.
+  </Step>
+  
+  <Step title="Use Environment Variables">
+    In production, store passwords in environment variables rather than configuration files:
+    
+    ```bash
+    export TSSERVER_QUERY_ADMIN_PASSWORD="$(cat /secure/path/to/password)"
+    ```
+  </Step>
+  
+  <Step title="Regular Password Rotation">
+    Change the admin password periodically as part of your security maintenance.
+  </Step>
+</Steps>
+
+## Troubleshooting Authentication
+
+### Authentication Failed
+
+If you can't authenticate:
+
+1. Verify you're using the correct password
+2. Check if your IP is in the block list
+3. Review server logs for authentication errors
+4. Ensure the query interface is enabled
+5. Try resetting the password using `--query-admin-password`
+
+### Too Many Failed Attempts
+
+If you're locked out due to brute force protection:
+
+1. Wait for the lockout period to expire (typically 15-30 minutes)
+2. Add your IP to the allow list to bypass flood protection
+3. Restart the server to clear temporary blocks
+
+### Password Not Working After Change
+
+If a new password isn't working:
+
+1. Ensure you restarted the server after changing the configuration
+2. Verify the password in your configuration file doesn't have extra spaces or quotes
+3. Check server logs for configuration errors
+4. Try setting the password via command line parameter to override database settings
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="HTTP/HTTPS Query" icon="globe" href="/server-query/http">
+    Configure HTTP and HTTPS interfaces
+  </Card>
+  <Card title="SSH Query" icon="terminal" href="/server-query/ssh">
+    Configure SSH interface
+  </Card>
+  <Card title="Query Overview" icon="book" href="/server-query/overview">
+    Learn about Server Query capabilities
+  </Card>
+</CardGroup>

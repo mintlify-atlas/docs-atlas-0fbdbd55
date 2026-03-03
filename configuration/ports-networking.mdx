@@ -1,0 +1,536 @@
+---
+title: Ports & Networking
+description: Configure network ports, IP bindings, and ServerQuery interfaces
+icon: network-wired
+---
+
+This page covers network configuration for TeamSpeak 6 Server, including port configuration, IP bindings, and ServerQuery interface setup.
+
+## Default Ports
+
+TeamSpeak 6 Server uses the following default ports:
+
+| Port | Protocol | Service | Required |
+|------|----------|---------|----------|
+| 9987 | UDP | Voice communication | Yes |
+| 30033 | TCP | File transfers | Yes |
+| 10080 | TCP | HTTP ServerQuery | Optional |
+| 10022 | TCP | SSH ServerQuery | Optional |
+| 10443 | TCP | HTTPS ServerQuery | Optional |
+
+<Info>
+  Only the voice port (9987/UDP) and file transfer port (30033/TCP) are required for basic operation. ServerQuery ports are optional and must be explicitly enabled.
+</Info>
+
+## Voice Port Configuration
+
+<ParamField path="--default-voice-port" type="integer" default="9987">
+  Permanently sets the default UDP voice port for the first virtual server created.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_DEFAULT_PORT`
+</ParamField>
+
+<ParamField path="--voice-ip" type="string" default="[0.0.0.0, ::]">
+  IP address(es) for the server to bind the voice port to. Supports both IPv4 and IPv6.
+  
+  **Environment Variable:** `TSSERVER_VOICE_IP`
+</ParamField>
+
+<CodeGroup>
+```bash CLI
+./tsserver --default-voice-port 9987 --voice-ip 0.0.0.0
+```
+
+```yaml Docker Compose
+services:
+  teamspeak:
+    ports:
+      - "9987:9987/udp"
+    environment:
+      - TSSERVER_DEFAULT_PORT=9987
+      - TSSERVER_VOICE_IP=0.0.0.0
+```
+
+```yaml YAML Config
+server:
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+```
+</CodeGroup>
+
+<Note>
+  To listen on all interfaces (both IPv4 and IPv6), use both `0.0.0.0` and `::` in the voice-ip configuration.
+</Note>
+
+## File Transfer Port
+
+<ParamField path="--filetransfer-port" type="integer" default="30033">
+  Port on which to listen and advertise for file transfer connections.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_PORT`
+</ParamField>
+
+<ParamField path="--filetransfer-ip" type="string" default="[0.0.0.0, ::]">
+  The address on which to listen for file transfer connections.
+  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_IP`
+</ParamField>
+
+<Warning>
+  **Docker Port Mapping:** When running inside a Docker container, ensure that the **internal container port matches the external host port**. File transfers rely on clients connecting directly to this port.
+  
+  **Correct:** `-p 30033:30033/tcp`  
+  **Incorrect:** `-p 30034:30033/tcp` (will cause connection failures)
+  
+  Mismatches between the container's listening port and the published port will cause connectivity issues.
+</Warning>
+
+<CodeGroup>
+```yaml Docker Compose
+services:
+  teamspeak:
+    ports:
+      - "30033:30033/tcp"  # Must match!
+    environment:
+      - TSSERVER_FILE_TRANSFER_PORT=30033
+      - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+```
+
+```bash CLI
+./tsserver --filetransfer-port 30033 --filetransfer-ip 0.0.0.0
+```
+</CodeGroup>
+
+## ServerQuery Configuration
+
+ServerQuery provides programmatic access to server administration. TeamSpeak 6 supports three query interfaces: HTTP, HTTPS, and SSH.
+
+### General Query Options
+
+<ParamField path="--query-pool-size" type="integer" default="2">
+  How many threads to use for query command processing.
+  
+  **Range:** 2-32  
+  **Environment Variable:** `TSSERVER_QUERY_POOL_SIZE`
+</ParamField>
+
+<ParamField path="--query-timeout" type="integer" default="300">
+  Timeout in seconds before query connections expire.
+  
+  **Environment Variable:** `TSSERVER_QUERY_TIMEOUT`
+</ParamField>
+
+<ParamField path="--query-buffer-mb" type="integer" default="20">
+  How much memory (in MB) to allocate for query connection buffering.
+  
+  **Range:** 20-100  
+  **Environment Variable:** `TSSERVER_QUERY_BUFFER_MB`
+</ParamField>
+
+<ParamField path="--query-admin-password" type="string" default="">
+  Sets a password for the serveradmin query account, overriding the database value.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ADMIN_PASSWORD`
+</ParamField>
+
+<ParamField path="--query-documentation-path" type="string" default="serverquerydocs">
+  Path to the query documentation files.
+  
+  **Environment Variable:** `TSSERVER_QUERY_DOCUMENTATION_PATH`
+</ParamField>
+
+### HTTP ServerQuery
+
+The HTTP interface provides a RESTful API for server management.
+
+<ParamField path="--query-http-enable" type="boolean" default="false">
+  Enables the HTTP query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTP_ENABLED` (set to `true` or `1`)
+</ParamField>
+
+<ParamField path="--query-http-port" type="integer" default="10080">
+  The port for the HTTP query interface.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_QUERY_HTTP_PORT`
+</ParamField>
+
+<ParamField path="--query-http-ip" type="string" default="[0.0.0.0, ::]">
+  Address to listen on for HTTP query connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTP_IP`
+</ParamField>
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml
+    services:
+      teamspeak:
+        ports:
+          - "9987:9987/udp"
+          - "30033:30033/tcp"
+          - "10080:10080/tcp"  # HTTP Query
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_QUERY_HTTP_ENABLED=true
+          - TSSERVER_QUERY_HTTP_PORT=10080
+    ```
+  </Tab>
+  <Tab title="CLI">
+    ```bash
+    ./tsserver \
+      --accept-license \
+      --query-http-enable \
+      --query-http-port 10080 \
+      --query-http-ip 0.0.0.0
+    ```
+  </Tab>
+  <Tab title="YAML">
+    ```yaml
+    server:
+      query:
+        http:
+          enable: 1
+          port: 10080
+          ip:
+            - 0.0.0.0
+            - "::"
+    ```
+  </Tab>
+</Tabs>
+
+### HTTPS ServerQuery
+
+The HTTPS interface provides secure, encrypted API access.
+
+<ParamField path="--query-https-enable" type="boolean" default="false">
+  Enables the HTTPS query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_ENABLED`
+</ParamField>
+
+<ParamField path="--query-https-port" type="integer" default="10443">
+  Port on which to listen for secure Web Query connections.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_PORT`
+</ParamField>
+
+<ParamField path="--query-https-ip" type="string" default="[0.0.0.0, ::]">
+  Address to listen on for secure Web Query connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_IP`
+</ParamField>
+
+<ParamField path="--query-https-certificate" type="string" default="">
+  Path to certificate file for HTTPS Web Query.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_CERT`
+</ParamField>
+
+<ParamField path="--query-https-private-key" type="string" default="">
+  Path to private key file used with the certificate.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_PRIVATE_KEY`
+</ParamField>
+
+<CodeGroup>
+```bash CLI
+./tsserver \
+  --query-https-enable \
+  --query-https-port 10443 \
+  --query-https-certificate /path/to/cert.pem \
+  --query-https-private-key /path/to/key.pem
+```
+
+```yaml YAML
+server:
+  query:
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+      certificate: /path/to/cert.pem
+      private-key: /path/to/key.pem
+```
+</CodeGroup>
+
+<Info>
+  HTTPS ServerQuery requires a valid SSL/TLS certificate. You can use Let's Encrypt or self-signed certificates for testing.
+</Info>
+
+### SSH ServerQuery
+
+The SSH interface provides command-line access via SSH protocol.
+
+<ParamField path="--query-ssh-enable" type="boolean" default="false">
+  Enables the SSH query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_ENABLED`
+</ParamField>
+
+<ParamField path="--query-ssh-port" type="integer" default="10022">
+  Port on which to listen for SSH query connections.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_PORT`
+</ParamField>
+
+<ParamField path="--query-ssh-ip" type="string" default="[0.0.0.0, ::]">
+  Address to listen on for SSH query connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_IP`
+</ParamField>
+
+<ParamField path="--query-ssh-rsa-key" type="string" default="ssh_host_rsa_key">
+  Path to the SSH RSA host key file. Generated automatically if not found.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_RSA_KEY`
+</ParamField>
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml
+    services:
+      teamspeak:
+        ports:
+          - "10022:10022/tcp"  # SSH Query
+        environment:
+          - TSSERVER_QUERY_SSH_ENABLED=true
+          - TSSERVER_QUERY_SSH_PORT=10022
+    ```
+  </Tab>
+  <Tab title="CLI">
+    ```bash
+    ./tsserver \
+      --query-ssh-enable \
+      --query-ssh-port 10022 \
+      --query-ssh-ip 0.0.0.0
+    ```
+  </Tab>
+</Tabs>
+
+## Security Options
+
+### Admin Password
+
+<ParamField path="--query-admin-password" type="string" default="">
+  Override the query password for the built-in serveradmin account.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ADMIN_PASSWORD`
+</ParamField>
+
+```bash
+export TSSERVER_QUERY_ADMIN_PASSWORD=your_secure_password
+```
+
+<Warning>
+  Always set a strong admin password in production environments. The default random password is logged only once during first startup.
+</Warning>
+
+### IP Allow List
+
+<ParamField path="--query-ip-allow-list" type="string" default="query_ip_allowlist.txt">
+  File path listing IPs exempt from query flood protection. One IP per line.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ALLOW_LIST`
+</ParamField>
+
+```txt query_ip_allowlist.txt
+192.168.1.100
+10.0.0.0/8
+2001:db8::1
+```
+
+### IP Block List
+
+<ParamField path="--query-ip-block-list" type="string" default="query_ip_denylist.txt">
+  File path listing IPs blocked from the query interface. One IP per line.
+  
+  **Environment Variable:** `TSSERVER_QUERY_DENY_LIST`
+</ParamField>
+
+```txt query_ip_denylist.txt
+203.0.113.0/24
+192.0.2.50
+```
+
+### Brute Force Protection
+
+<ParamField path="--query-skip-brute-force-check" type="boolean" default="false">
+  Skip brute force checking on query interface connections. Only use in trusted networks.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SKIP_BRUTE_FORCE_CHECK`
+</ParamField>
+
+<Warning>
+  Disabling brute force protection makes your server vulnerable to password attacks. Only use in isolated or development environments.
+</Warning>
+
+## Logging Options
+
+<ParamField path="--query-log-commands" type="boolean" default="false">
+  Log every command received on the query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_LOG_COMMANDS`
+</ParamField>
+
+<ParamField path="--query-log-timing" type="integer" default="3600">
+  Interval in seconds after which to log query statistics.
+  
+  **Range:** 10-31556952  
+  **Environment Variable:** `TSSERVER_QUERY_LOG_TIMING`
+</ParamField>
+
+```bash
+export TSSERVER_QUERY_LOG_COMMANDS=true
+export TSSERVER_QUERY_LOG_TIMING=1800
+```
+
+## Complete Configuration Example
+
+<Tabs>
+  <Tab title="All Query Interfaces">
+    ```yaml docker-compose.yml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        ports:
+          - "9987:9987/udp"    # Voice
+          - "30033:30033/tcp"  # File transfer
+          - "10080:10080/tcp"  # HTTP Query
+          - "10022:10022/tcp"  # SSH Query
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          
+          # Query configuration
+          - TSSERVER_QUERY_HTTP_ENABLED=true
+          - TSSERVER_QUERY_HTTP_PORT=10080
+          - TSSERVER_QUERY_SSH_ENABLED=true
+          - TSSERVER_QUERY_SSH_PORT=10022
+          - TSSERVER_QUERY_ADMIN_PASSWORD=secure_password
+          - TSSERVER_QUERY_POOL_SIZE=4
+        volumes:
+          - teamspeak-data:/var/tsserver
+    
+    volumes:
+      teamspeak-data:
+    ```
+  </Tab>
+  <Tab title="YAML Config">
+    ```yaml tsserver.yaml
+    server:
+      accept-license: accept
+      default-voice-port: 9987
+      voice-ip:
+        - 0.0.0.0
+        - "::"
+      filetransfer-port: 30033
+      filetransfer-ip:
+        - 0.0.0.0
+        - "::"
+      
+      query:
+        pool-size: 4
+        timeout: 300
+        admin-password: secure_password
+        ip-allow-list: query_ip_allowlist.txt
+        ip-block-list: query_ip_denylist.txt
+        log-commands: 0
+        
+        http:
+          enable: 1
+          port: 10080
+          ip:
+            - 0.0.0.0
+            - "::"
+        
+        ssh:
+          enable: 1
+          port: 10022
+          ip:
+            - 0.0.0.0
+            - "::"
+          rsa-key: ssh_host_rsa_key
+    ```
+  </Tab>
+</Tabs>
+
+## Firewall Configuration
+
+Ensure your firewall allows traffic on the required ports:
+
+<CodeGroup>
+```bash UFW (Ubuntu)
+sudo ufw allow 9987/udp comment 'TeamSpeak Voice'
+sudo ufw allow 30033/tcp comment 'TeamSpeak File Transfer'
+sudo ufw allow 10080/tcp comment 'TeamSpeak HTTP Query'
+sudo ufw allow 10022/tcp comment 'TeamSpeak SSH Query'
+```
+
+```bash firewalld (CentOS/RHEL)
+sudo firewall-cmd --permanent --add-port=9987/udp
+sudo firewall-cmd --permanent --add-port=30033/tcp
+sudo firewall-cmd --permanent --add-port=10080/tcp
+sudo firewall-cmd --permanent --add-port=10022/tcp
+sudo firewall-cmd --reload
+```
+
+```bash iptables
+iptables -A INPUT -p udp --dport 9987 -j ACCEPT
+iptables -A INPUT -p tcp --dport 30033 -j ACCEPT
+iptables -A INPUT -p tcp --dport 10080 -j ACCEPT
+iptables -A INPUT -p tcp --dport 10022 -j ACCEPT
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Connection Issues
+
+If clients cannot connect:
+
+1. Verify the voice port (9987/UDP) is open in your firewall
+2. Check that the server is listening on the correct IP address
+3. Ensure port forwarding is configured correctly on your router
+4. Test connectivity with `netstat -tuln | grep 9987`
+
+### File Transfer Problems
+
+If file transfers fail:
+
+1. Verify Docker port mapping matches the configured port
+2. Ensure the file transfer port (30033/TCP) is accessible
+3. Check firewall rules allow TCP traffic on port 30033
+4. Confirm the port is not in use by another service
+
+### ServerQuery Not Accessible
+
+If ServerQuery interfaces are not responding:
+
+1. Verify the interface is enabled (`query-*-enable`)
+2. Check the ports are not blocked by firewall
+3. Ensure no other service is using the query ports
+4. Review server logs for binding errors
+5. Test with `curl http://localhost:10080` (for HTTP query)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="YAML Configuration" icon="file-code" href="/configuration/yaml-file">
+    Complete YAML file reference
+  </Card>
+  <Card title="Server Settings" icon="server" href="/configuration/server-settings">
+    Configure core server options
+  </Card>
+</CardGroup>

@@ -1,0 +1,645 @@
+---
+title: "Updates"
+description: "Update your TeamSpeak 6 Server to the latest version"
+---
+
+## Overview
+
+Keeping your TeamSpeak 6 Server up to date ensures you have the latest features, security patches, and bug fixes. This guide covers update procedures for both Docker and binary installations.
+
+<Note>
+  TeamSpeak 6 is currently in beta. Update procedures may change as the product evolves toward stable release.
+</Note>
+
+## Before You Update
+
+<Steps>
+  <Step title="Check release notes">
+    Review the [TeamSpeak 6 Server releases](https://github.com/teamspeak/teamspeak6-server/releases) for:
+    - New features and improvements
+    - Breaking changes
+    - Known issues
+    - Migration notes
+  </Step>
+  
+  <Step title="Create a backup">
+    Always backup before updating. See [Backup & Restore](/operations/backup-restore) for detailed instructions.
+    
+    ```bash
+    # Quick backup command
+    docker run --rm -v teamspeak-data:/data -v $(pwd):/backup alpine \
+      tar czf /backup/teamspeak-backup-pre-update-$(date +%Y%m%d).tar.gz -C /data .
+    ```
+  </Step>
+  
+  <Step title="Review configuration changes">
+    Check if the new version requires configuration updates:
+    - New parameters in CONFIG.md
+    - Deprecated settings
+    - Database schema changes
+  </Step>
+  
+  <Step title="Plan maintenance window">
+    Schedule the update during low-usage periods:
+    - Notify users in advance
+    - Estimated downtime: 5-15 minutes
+    - Have rollback plan ready
+  </Step>
+</Steps>
+
+<Warning>
+  Test updates in a non-production environment first if possible. Never update directly in production without a backup.
+</Warning>
+
+## Docker Updates
+
+### Update Using Docker Compose
+
+<Steps>
+  <Step title="Pull the latest image">
+    ```bash
+    # Pull latest version
+    docker compose pull teamspeak
+    
+    # Or pull specific version
+    docker pull teamspeaksystems/teamspeak6-server:1.0.0
+    ```
+  </Step>
+  
+  <Step title="Stop and remove the container">
+    ```bash
+    # Stop and remove container (data is preserved in volume)
+    docker compose down
+    ```
+    
+    <Note>
+      Using `docker compose down` removes the container but keeps volumes intact. Your data is safe.
+    </Note>
+  </Step>
+  
+  <Step title="Start with new image">
+    ```bash
+    # Start with updated image
+    docker compose up -d
+    ```
+  </Step>
+  
+  <Step title="Verify the update">
+    ```bash
+    # Check server logs
+    docker logs -f teamspeak-server
+    
+    # Verify version
+    docker exec teamspeak-server ./tsserver --version
+    
+    # Check container status
+    docker ps
+    ```
+  </Step>
+</Steps>
+
+### Update Using Docker Run
+
+<Steps>
+  <Step title="Stop and remove the container">
+    ```bash
+    docker stop teamspeak-server
+    docker rm teamspeak-server
+    ```
+  </Step>
+  
+  <Step title="Pull the latest image">
+    ```bash
+    docker pull teamspeaksystems/teamspeak6-server:latest
+    ```
+  </Step>
+  
+  <Step title="Start with updated image">
+    ```bash
+    docker run -d \
+      --name teamspeak-server \
+      -p 9987:9987/udp \
+      -p 30033:30033 \
+      -e TSSERVER_LICENSE_ACCEPTED=accept \
+      -v teamspeak-data:/var/tsserver/ \
+      teamspeaksystems/teamspeak6-server:latest
+    ```
+  </Step>
+  
+  <Step title="Verify the update">
+    ```bash
+    docker logs -f teamspeak-server
+    ```
+  </Step>
+</Steps>
+
+### Automated Docker Updates
+
+<Tabs>
+  <Tab title="Watchtower">
+    Use Watchtower to automatically update containers:
+    
+    ```yaml docker-compose.yaml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        # ... other configuration ...
+      
+      watchtower:
+        image: containrrr/watchtower
+        container_name: watchtower
+        restart: unless-stopped
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        environment:
+          - WATCHTOWER_CLEANUP=true
+          - WATCHTOWER_POLL_INTERVAL=86400  # Check daily
+          - WATCHTOWER_INCLUDE_RESTARTING=true
+        command: teamspeak-server
+    ```
+    
+    <Warning>
+      Automatic updates can cause unexpected downtime. Use with caution in production environments.
+    </Warning>
+  </Tab>
+  
+  <Tab title="Manual Script">
+    Create an update script for controlled updates:
+    
+    ```bash update-teamspeak.sh
+    #!/bin/bash
+    
+    set -e
+    
+    CONTAINER_NAME="teamspeak-server"
+    IMAGE="teamspeaksystems/teamspeak6-server:latest"
+    BACKUP_DIR="/backups/teamspeak"
+    
+    echo "[$(date)] Starting TeamSpeak update..."
+    
+    # Create pre-update backup
+    echo "[$(date)] Creating backup..."
+    ./backup-teamspeak.sh
+    
+    # Pull new image
+    echo "[$(date)] Pulling latest image..."
+    docker pull "${IMAGE}"
+    
+    # Stop and remove container
+    echo "[$(date)] Stopping container..."
+    docker stop "${CONTAINER_NAME}"
+    docker rm "${CONTAINER_NAME}"
+    
+    # Start with new image
+    echo "[$(date)] Starting updated container..."
+    docker compose up -d
+    
+    # Wait for startup
+    sleep 10
+    
+    # Verify
+    echo "[$(date)] Verifying update..."
+    if docker ps | grep -q "${CONTAINER_NAME}"; then
+        echo "[$(date)] Update successful!"
+        docker logs --tail 50 "${CONTAINER_NAME}"
+    else
+        echo "[$(date)] Update failed! Rolling back..."
+        # Rollback logic here
+        exit 1
+    fi
+    ```
+    
+    ```bash
+    chmod +x update-teamspeak.sh
+    ./update-teamspeak.sh
+    ```
+  </Tab>
+</Tabs>
+
+## Binary Installation Updates
+
+### Linux Update Procedure
+
+<Steps>
+  <Step title="Download the latest version">
+    ```bash
+    # Download from official source
+    cd /tmp
+    wget https://files.teamspeak-services.com/releases/server/6.x.x/teamspeak6-server_linux_amd64-6.x.x.tar.gz
+    
+    # Verify checksum (if provided)
+    sha256sum teamspeak6-server_linux_amd64-6.x.x.tar.gz
+    ```
+  </Step>
+  
+  <Step title="Stop the server">
+    ```bash
+    # If using systemd
+    sudo systemctl stop teamspeak
+    
+    # Or if running directly
+    pkill tsserver
+    
+    # Verify server stopped
+    ps aux | grep tsserver
+    ```
+  </Step>
+  
+  <Step title="Backup current installation">
+    ```bash
+    # Create backup
+    cd /opt
+    tar czf teamspeak-backup-pre-update-$(date +%Y%m%d).tar.gz teamspeak/
+    
+    # Or rename current directory
+    mv teamspeak teamspeak-old-$(date +%Y%m%d)
+    ```
+  </Step>
+  
+  <Step title="Extract new version">
+    ```bash
+    # Extract to new directory
+    cd /opt
+    tar xzf /tmp/teamspeak6-server_linux_amd64-6.x.x.tar.gz
+    mv teamspeak6-server_linux_amd64 teamspeak-new
+    ```
+  </Step>
+  
+  <Step title="Migrate data and configuration">
+    ```bash
+    # Copy data files from old installation
+    cp teamspeak-old/*.sqlite teamspeak-new/
+    cp teamspeak-old/licensekey.dat teamspeak-new/
+    cp teamspeak-old/tsserver.yaml teamspeak-new/
+    
+    # Copy file storage
+    cp -r teamspeak-old/files teamspeak-new/
+    
+    # Copy SSH keys (if using SSH query)
+    cp teamspeak-old/ssh_host_rsa_key* teamspeak-new/
+    
+    # Set permissions
+    chown -R tsserver:tsserver teamspeak-new/
+    chmod +x teamspeak-new/tsserver
+    
+    # Replace old with new
+    rm -rf teamspeak
+    mv teamspeak-new teamspeak
+    ```
+  </Step>
+  
+  <Step title="Review configuration">
+    ```bash
+    # Check for new configuration options
+    ./teamspeak/tsserver --help | less
+    
+    # Compare with CONFIG.md
+    # Update tsserver.yaml if needed
+    ```
+  </Step>
+  
+  <Step title="Start the server">
+    ```bash
+    # If using systemd
+    sudo systemctl start teamspeak
+    sudo systemctl status teamspeak
+    
+    # Or run directly
+    cd /opt/teamspeak
+    ./tsserver --accept-license
+    ```
+  </Step>
+  
+  <Step title="Verify the update">
+    ```bash
+    # Check version
+    ./tsserver --version
+    
+    # Monitor logs
+    tail -f /opt/teamspeak/logs/ts6server_*.log
+    
+    # Test connectivity
+    # Connect with TeamSpeak client
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  Keep the old installation directory for a few days in case you need to rollback. Remove it once you're confident the update is stable.
+</Tip>
+
+### Windows Update Procedure
+
+<Steps>
+  <Step title="Download the latest version">
+    1. Visit [TeamSpeak Downloads](https://teamspeak.com/en/downloads/)
+    2. Download the Windows server package
+    3. Extract to a temporary location
+  </Step>
+  
+  <Step title="Stop the server">
+    ```powershell
+    # If running as service
+    Stop-Service TeamSpeak6
+    
+    # Or stop the process
+    Stop-Process -Name tsserver
+    
+    # Verify stopped
+    Get-Process tsserver -ErrorAction SilentlyContinue
+    ```
+  </Step>
+  
+  <Step title="Backup current installation">
+    ```powershell
+    # Create backup
+    Compress-Archive -Path "C:\TeamSpeak" `
+      -DestinationPath "C:\Backups\teamspeak-backup-$(Get-Date -Format 'yyyyMMdd').zip"
+    
+    # Or rename current directory
+    Rename-Item "C:\TeamSpeak" "C:\TeamSpeak-old-$(Get-Date -Format 'yyyyMMdd')"
+    ```
+  </Step>
+  
+  <Step title="Install new version">
+    ```powershell
+    # Copy new files
+    Copy-Item -Path "C:\Temp\teamspeak6-server\*" `
+      -Destination "C:\TeamSpeak-new" -Recurse
+    ```
+  </Step>
+  
+  <Step title="Migrate data">
+    ```powershell
+    # Copy database and configuration
+    Copy-Item "C:\TeamSpeak-old\*.sqlite" "C:\TeamSpeak-new\"
+    Copy-Item "C:\TeamSpeak-old\licensekey.dat" "C:\TeamSpeak-new\"
+    Copy-Item "C:\TeamSpeak-old\tsserver.yaml" "C:\TeamSpeak-new\"
+    
+    # Copy file storage
+    Copy-Item "C:\TeamSpeak-old\files" "C:\TeamSpeak-new\files" -Recurse
+    
+    # Rename directories
+    Rename-Item "C:\TeamSpeak-new" "C:\TeamSpeak"
+    ```
+  </Step>
+  
+  <Step title="Start the server">
+    ```powershell
+    # If using service
+    Start-Service TeamSpeak6
+    
+    # Or start directly
+    Start-Process -FilePath "C:\TeamSpeak\tsserver.exe"
+    ```
+  </Step>
+  
+  <Step title="Verify the update">
+    ```powershell
+    # Check version
+    & "C:\TeamSpeak\tsserver.exe" --version
+    
+    # Check service status
+    Get-Service TeamSpeak6
+    
+    # View logs
+    Get-Content "C:\TeamSpeak\logs\ts6server_*.log" -Tail 50 -Wait
+    ```
+  </Step>
+</Steps>
+
+## Database Updates
+
+### Automatic Schema Updates
+
+TeamSpeak 6 Server automatically applies database schema updates on startup:
+
+```bash
+# Monitor logs for database updates
+tail -f logs/ts6server_*.log | grep -i "database\|migration\|schema"
+```
+
+<Note>
+  Database migrations run automatically. Large databases may take several minutes to update during the first startup after an update.
+</Note>
+
+### Manual Database Backup Before Update
+
+For critical installations, backup the database separately:
+
+<Tabs>
+  <Tab title="SQLite">
+    ```bash
+    sqlite3 /var/tsserver/ts6server.sqlite \
+      ".backup /backups/ts6server-pre-update-$(date +%Y%m%d).sqlite"
+    ```
+  </Tab>
+  <Tab title="MariaDB">
+    ```bash
+    mysqldump -u teamspeak -p teamspeak \
+      --single-transaction \
+      > teamspeak-db-pre-update-$(date +%Y%m%d).sql
+    ```
+  </Tab>
+</Tabs>
+
+## Rollback Procedures
+
+If an update fails or causes issues:
+
+### Docker Rollback
+
+<Steps>
+  <Step title="Stop the updated container">
+    ```bash
+    docker compose down
+    ```
+  </Step>
+  
+  <Step title="Restore previous image">
+    ```yaml docker-compose.yaml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:1.0.0  # Previous version
+        # ... rest of configuration ...
+    ```
+  </Step>
+  
+  <Step title="Restore backup if needed">
+    ```bash
+    # If database was corrupted
+    docker run --rm -v teamspeak-data:/data -v $(pwd):/backup alpine \
+      sh -c "rm -rf /data/* && tar xzf /backup/teamspeak-backup-pre-update-YYYYMMDD.tar.gz -C /data"
+    ```
+  </Step>
+  
+  <Step title="Start with previous version">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
+</Steps>
+
+### Binary Rollback
+
+<Steps>
+  <Step title="Stop the server">
+    ```bash
+    sudo systemctl stop teamspeak
+    ```
+  </Step>
+  
+  <Step title="Restore previous version">
+    ```bash
+    # Remove new version
+    rm -rf /opt/teamspeak
+    
+    # Restore old version
+    mv /opt/teamspeak-old-YYYYMMDD /opt/teamspeak
+    
+    # Or extract from backup
+    tar xzf teamspeak-backup-pre-update-YYYYMMDD.tar.gz -C /opt/
+    ```
+  </Step>
+  
+  <Step title="Restore database if needed">
+    ```bash
+    # SQLite
+    cp /backups/ts6server-pre-update-YYYYMMDD.sqlite \
+      /opt/teamspeak/ts6server.sqlite
+    
+    # MariaDB
+    mysql -u root -p teamspeak < teamspeak-db-pre-update-YYYYMMDD.sql
+    ```
+  </Step>
+  
+  <Step title="Start the server">
+    ```bash
+    sudo systemctl start teamspeak
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Rollbacks may fail if the new version made irreversible database changes. Always test updates in a non-production environment first.
+</Warning>
+
+## Beta License Updates
+
+<Note>
+  During the beta period, the 32-slot license is renewed every two months. No manual action is required.
+</Note>
+
+The server will automatically fetch the updated license:
+
+```bash
+# Check license status in logs
+grep -i "license" logs/ts6server_*.log
+
+# Verify license file
+ls -lh licensekey.dat
+```
+
+If license renewal fails:
+
+1. Check network connectivity
+2. Verify firewall allows outbound connections
+3. Restart the server
+4. Contact TeamSpeak support if issues persist
+
+## Version Pinning
+
+For production stability, pin specific versions:
+
+### Docker Version Pinning
+
+```yaml docker-compose.yaml
+services:
+  teamspeak:
+    image: teamspeaksystems/teamspeak6-server:1.0.0  # Specific version
+    # Do not use :latest in production
+```
+
+### Update Policy
+
+Establish an update policy:
+
+- **Security updates:** Apply within 48 hours
+- **Feature updates:** Test for 1-2 weeks before production
+- **Major versions:** Test for 4+ weeks before production
+
+<Tip>
+  Subscribe to the [TeamSpeak 6 Server releases](https://github.com/teamspeak/teamspeak6-server/releases) to receive notifications about new versions.
+</Tip>
+
+## Post-Update Checklist
+
+After updating, verify:
+
+- [ ] Server starts without errors
+- [ ] All virtual servers are online
+- [ ] Clients can connect
+- [ ] File transfers work
+- [ ] ServerQuery interfaces respond
+- [ ] Permissions are intact
+- [ ] Channel structure is preserved
+- [ ] Custom icons and files are accessible
+- [ ] Performance is normal (CPU, memory, bandwidth)
+- [ ] Logs show no warnings or errors
+
+```bash
+# Quick verification script
+#!/bin/bash
+
+echo "Server status:"
+docker ps | grep teamspeak-server || systemctl status teamspeak
+
+echo "\nRecent logs:"
+docker logs --tail 50 teamspeak-server 2>&1 | grep -i "error\|warning" || \
+  tail -50 /opt/teamspeak/logs/ts6server_*.log | grep -i "error\|warning"
+
+echo "\nPort connectivity:"
+nc -zuv localhost 9987
+nc -zv localhost 30033
+
+echo "\nUpdate verification complete."
+```
+
+## Troubleshooting Updates
+
+### Common Update Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Server won't start | Configuration incompatibility | Review CONFIG.md for changes, update tsserver.yaml |
+| Database errors | Failed migration | Restore from backup, check logs for specific error |
+| Permission denied | Wrong file ownership | Fix with `chown -R tsserver:tsserver /opt/teamspeak` |
+| Port binding failed | Old process still running | Kill process: `pkill -9 tsserver` |
+| Clients can't connect | Version mismatch | Ensure clients are updated to compatible version |
+
+### Getting Help
+
+If you encounter issues:
+
+1. Check the [TeamSpeak Community Forum](https://community.teamspeak.com/c/teamspeak-6-server/45)
+2. Review [GitHub Issues](https://github.com/teamspeak/teamspeak6-server/issues)
+3. Collect logs and system information:
+   ```bash
+   # Create support bundle
+   tar czf teamspeak-support-$(date +%Y%m%d).tar.gz \
+     logs/ \
+     tsserver.yaml \
+     docker-compose.yaml
+   ```
+4. Report issues on GitHub with:
+   - Server version (before and after update)
+   - Operating system and version
+   - Installation method (Docker/binary)
+   - Error messages from logs
+   - Steps to reproduce
+
+<Note>
+  For urgent issues during the beta period, contact TeamSpeak support through official channels.
+</Note>

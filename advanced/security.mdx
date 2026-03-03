@@ -1,0 +1,551 @@
+---
+title: "Security Configuration"
+description: "Secure your TeamSpeak 6 Server with IP filtering, brute force protection, and HTTPS"
+icon: "shield"
+---
+
+## Overview
+
+TeamSpeak 6 Server includes multiple security features to protect your server from unauthorized access and attacks. This guide covers IP filtering, brute force protection, HTTPS configuration, and other security best practices.
+
+## IP Allow List and Block List
+
+Control which IP addresses can access your Server Query interface using allow lists (whitelist) and block lists (blacklist).
+
+### IP Allow List
+
+The allow list specifies IP addresses that are exempt from query flood protection and rate limiting.
+
+<ParamField path="query-ip-allow-list" type="string" default="query_ip_allowlist.txt">
+  File path listing IP addresses exempt from Server Query flood protection.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ALLOW_LIST`
+  
+  ```yaml
+  server:
+    query:
+      ip-allow-list: query_ip_allowlist.txt
+  ```
+  
+  ```bash
+  ./tsserver --query-ip-allow-list query_ip_allowlist.txt
+  ```
+</ParamField>
+
+#### Allow List File Format
+
+Create a text file with one IP address per line:
+
+```text
+# Trusted administration servers
+192.168.1.10
+192.168.1.11
+
+# Monitoring system
+10.0.0.50
+
+# IPv6 addresses
+2001:db8::1
+```
+
+<Tip>
+  Lines starting with `#` are treated as comments and ignored.
+</Tip>
+
+### IP Block List
+
+The block list specifies IP addresses that are completely blocked from accessing the Server Query interface.
+
+<ParamField path="query-ip-block-list" type="string" default="query_ip_denylist.txt">
+  File path listing IP addresses blocked from the Server Query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_DENY_LIST`
+  
+  ```yaml
+  server:
+    query:
+      ip-block-list: query_ip_denylist.txt
+  ```
+  
+  ```bash
+  ./tsserver --query-ip-block-list query_ip_denylist.txt
+  ```
+</ParamField>
+
+#### Block List File Format
+
+Create a text file with one IP address per line:
+
+```text
+# Blocked IPs from attack attempts
+203.0.113.45
+198.51.100.22
+
+# Blocked ranges (if supported)
+192.0.2.0/24
+```
+
+<Warning>
+  Blocked IPs cannot access Server Query at all, even with valid credentials. Use this for known malicious sources.
+</Warning>
+
+### Reloading IP Lists
+
+Changes to IP list files require a server restart to take effect:
+
+```bash
+# After modifying allow/block list files
+systemctl restart tsserver
+```
+
+<Note>
+  Consider implementing a process to regularly review and update these lists based on security logs.
+</Note>
+
+## Brute Force Protection
+
+TeamSpeak 6 Server includes built-in brute force protection for Server Query authentication attempts.
+
+### Default Brute Force Protection
+
+By default, brute force checking is enabled and monitors failed authentication attempts:
+
+- Tracks failed login attempts per IP address
+- Implements exponential backoff after repeated failures
+- Temporarily blocks IPs after threshold is exceeded
+
+### Disabling Brute Force Protection
+
+<ParamField path="query-skip-brute-force-check" type="boolean" default="false">
+  Disables brute force checking on Server Query connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SKIP_BRUTE_FORCE_CHECK`
+  
+  ```yaml
+  server:
+    query:
+      skip-brute-force-check: 0
+  ```
+  
+  ```bash
+  ./tsserver --query-skip-brute-force-check
+  ```
+</ParamField>
+
+<Warning>
+  **Do not disable brute force protection in production environments.** Only disable this for trusted internal networks or testing purposes. Disabling brute force protection exposes your server to password guessing attacks.
+</Warning>
+
+### When to Disable Brute Force Protection
+
+Only disable brute force protection in these scenarios:
+
+- **Internal networks:** Server is only accessible within a trusted private network
+- **Development:** Testing automated scripts that make many authentication attempts
+- **Custom protection:** You've implemented external brute force protection (e.g., fail2ban)
+
+### Alternative Protection Methods
+
+Instead of disabling brute force protection:
+
+1. **Use IP allow lists** for trusted automation tools
+2. **Implement SSH key authentication** for Server Query SSH
+3. **Use strong passwords** for query accounts
+4. **Monitor logs** for suspicious authentication patterns
+
+## HTTPS Configuration
+
+Secure your HTTP Server Query interface with HTTPS encryption.
+
+### Enabling HTTPS
+
+<ParamField path="query-https-enable" type="boolean" default="false">
+  Enables the HTTPS Server Query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_ENABLED`
+  
+  ```yaml
+  server:
+    query:
+      https:
+        enable: 1
+        port: 10443
+        certificate: "/path/to/certificate.crt"
+        private-key: "/path/to/private.key"
+  ```
+  
+  ```bash
+  ./tsserver --query-https-enable \
+    --query-https-port 10443 \
+    --query-https-certificate "/path/to/certificate.crt" \
+    --query-https-private-key "/path/to/private.key"
+  ```
+</ParamField>
+
+### HTTPS Port Configuration
+
+<ParamField path="query-https-port" type="integer" default="10443">
+  Port for HTTPS Server Query connections.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_PORT`
+  
+  ```yaml
+  server:
+    query:
+      https:
+        port: 10443
+  ```
+</ParamField>
+
+### HTTPS Binding Address
+
+<ParamField path="query-https-ip" type="string[]" default="[0.0.0.0, ::]">
+  IP addresses to bind for HTTPS Server Query connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_IP`
+  
+  ```yaml
+  server:
+    query:
+      https:
+        ip:
+          - 0.0.0.0
+          - "::"
+  ```
+</ParamField>
+
+### SSL Certificate Configuration
+
+<ParamField path="query-https-certificate" type="string">
+  Path to the SSL certificate file for HTTPS.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_CERT`
+  
+  ```yaml
+  server:
+    query:
+      https:
+        certificate: "/etc/ssl/certs/tsserver.crt"
+  ```
+</ParamField>
+
+<ParamField path="query-https-private-key" type="string">
+  Path to the private key file for the SSL certificate.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_PRIVATE_KEY`
+  
+  ```yaml
+  server:
+    query:
+      https:
+        private-key: "/etc/ssl/private/tsserver.key"
+  ```
+</ParamField>
+
+### Obtaining SSL Certificates
+
+#### Using Let's Encrypt
+
+Obtain free SSL certificates using Certbot:
+
+```bash
+# Install certbot
+sudo apt install certbot
+
+# Obtain certificate
+sudo certbot certonly --standalone -d ts.example.com
+
+# Certificate locations:
+# Certificate: /etc/letsencrypt/live/ts.example.com/fullchain.pem
+# Private Key: /etc/letsencrypt/live/ts.example.com/privkey.pem
+```
+
+Configure TeamSpeak to use Let's Encrypt certificates:
+
+```yaml
+server:
+  query:
+    https:
+      enable: 1
+      port: 10443
+      certificate: "/etc/letsencrypt/live/ts.example.com/fullchain.pem"
+      private-key: "/etc/letsencrypt/live/ts.example.com/privkey.pem"
+```
+
+<Note>
+  Let's Encrypt certificates expire after 90 days. Set up automatic renewal using certbot's renewal timer.
+</Note>
+
+#### Using Self-Signed Certificates
+
+For testing or internal use, create a self-signed certificate:
+
+```bash
+# Generate self-signed certificate
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+
+# Move to appropriate location
+sudo mkdir -p /etc/tsserver/ssl
+sudo mv cert.pem /etc/tsserver/ssl/
+sudo mv key.pem /etc/tsserver/ssl/
+sudo chmod 600 /etc/tsserver/ssl/key.pem
+```
+
+<Warning>
+  Self-signed certificates will trigger security warnings in browsers and API clients. Only use for development or internal networks.
+</Warning>
+
+## SSH Server Query Security
+
+The SSH Server Query interface provides encrypted communication by default.
+
+### SSH Key Configuration
+
+<ParamField path="query-ssh-rsa-key" type="string" default="ssh_host_rsa_key">
+  Path to the SSH RSA host key file.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_RSA_KEY`
+  
+  ```yaml
+  server:
+    query:
+      ssh:
+        rsa-key: ssh_host_rsa_key
+  ```
+</ParamField>
+
+### Generating SSH Host Keys
+
+If the server doesn't automatically generate host keys:
+
+```bash
+# Generate RSA host key
+ssh-keygen -t rsa -b 4096 -f ssh_host_rsa_key -N ""
+
+# Set appropriate permissions
+chmod 600 ssh_host_rsa_key
+chmod 644 ssh_host_rsa_key.pub
+```
+
+## Query Admin Password
+
+Secure the built-in serveradmin account with a strong password.
+
+<ParamField path="query-admin-password" type="string">
+  Sets or overrides the password for the serveradmin Server Query account.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ADMIN_PASSWORD`
+  
+  ```yaml
+  server:
+    query:
+      admin-password: "your-secure-password"
+  ```
+  
+  ```bash
+  ./tsserver --query-admin-password "your-secure-password"
+  ```
+</ParamField>
+
+<Warning>
+  **Never use default or weak passwords** for the serveradmin account. This account has full server control.
+</Warning>
+
+### Password Best Practices
+
+- Use passwords at least 16 characters long
+- Include uppercase, lowercase, numbers, and special characters
+- Store passwords in a secure password manager
+- Rotate passwords regularly
+- Never commit passwords to version control
+
+### Using Environment Variables for Secrets
+
+```bash
+# Set password via environment variable
+export TSSERVER_QUERY_ADMIN_PASSWORD="your-secure-password"
+./tsserver
+```
+
+Or use a secrets management system:
+
+```bash
+# Using HashiCorp Vault
+export TSSERVER_QUERY_ADMIN_PASSWORD=$(vault kv get -field=password secret/tsserver/admin)
+./tsserver
+```
+
+## Network Security
+
+### Firewall Configuration
+
+Limit access to Server Query ports:
+
+```bash
+# Allow SSH Query only from specific IP
+sudo ufw allow from 192.168.1.0/24 to any port 10022
+
+# Allow HTTPS Query only from specific IP
+sudo ufw allow from 192.168.1.0/24 to any port 10443
+
+# Deny all other access to Query ports
+sudo ufw deny 10022
+sudo ufw deny 10080
+sudo ufw deny 10443
+```
+
+### Reverse Proxy Configuration
+
+Use a reverse proxy for additional security:
+
+```nginx
+# Nginx configuration
+server {
+    listen 443 ssl;
+    server_name ts-query.example.com;
+    
+    ssl_certificate /etc/ssl/certs/tsserver.crt;
+    ssl_certificate_key /etc/ssl/private/tsserver.key;
+    
+    location / {
+        proxy_pass https://localhost:10443;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # IP whitelist
+        allow 192.168.1.0/24;
+        deny all;
+    }
+}
+```
+
+## Security Monitoring
+
+### Enable Query Command Logging
+
+<ParamField path="query-log-commands" type="boolean" default="false">
+  Logs every command received on the Server Query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_LOG_COMMANDS`
+  
+  ```yaml
+  server:
+    query:
+      log-commands: 1
+  ```
+</ParamField>
+
+<Note>
+  Command logging helps detect suspicious activity but increases log file size. Enable for security audits or incident investigation.
+</Note>
+
+### Monitor Authentication Failures
+
+Regularly review logs for failed authentication attempts:
+
+```bash
+# Search for failed login attempts
+grep "authentication failed" logs/ts3server_*.log
+
+# Count failures by IP
+grep "authentication failed" logs/ts3server_*.log | awk '{print $NF}' | sort | uniq -c | sort -nr
+```
+
+### Implement Fail2Ban
+
+Automatically ban IPs with repeated failed attempts:
+
+```ini
+# /etc/fail2ban/jail.local
+[tsserver-query]
+enabled = true
+port = 10022,10080,10443
+filter = tsserver-query
+logpath = /path/to/tsserver/logs/ts3server_*.log
+maxretry = 5
+bantime = 3600
+```
+
+## Security Best Practices
+
+### Access Control
+
+1. **Limit Server Query access** to trusted IP addresses using allow lists
+2. **Use SSH or HTTPS** instead of plain HTTP for Server Query
+3. **Disable unused interfaces** (HTTP if only using SSH)
+4. **Use strong passwords** for all query accounts
+5. **Implement key-based authentication** where possible
+
+### Network Isolation
+
+1. **Place servers in DMZ** or isolated network segments
+2. **Use VPN access** for administrative connections
+3. **Implement network segmentation** between voice and query interfaces
+4. **Use firewall rules** to restrict port access
+
+### Monitoring and Auditing
+
+1. **Enable command logging** for security audits
+2. **Monitor authentication failures** in real-time
+3. **Review IP block/allow lists** regularly
+4. **Audit permission changes** via logs
+5. **Set up alerts** for suspicious activity
+
+### Regular Maintenance
+
+1. **Update SSL certificates** before expiration
+2. **Rotate passwords** quarterly
+3. **Review access logs** monthly
+4. **Update server software** promptly
+5. **Test backup restoration** procedures
+
+## Troubleshooting
+
+### Can't Connect to HTTPS Query
+
+1. **Verify HTTPS is enabled:**
+   ```bash
+   netstat -tulpn | grep 10443
+   ```
+
+2. **Check certificate paths:**
+   ```bash
+   ls -l /etc/letsencrypt/live/ts.example.com/
+   ```
+
+3. **Verify certificate permissions:**
+   ```bash
+   # Server must have read access to certificate files
+   sudo chmod 644 /etc/letsencrypt/live/ts.example.com/fullchain.pem
+   sudo chmod 600 /etc/letsencrypt/live/ts.example.com/privkey.pem
+   ```
+
+4. **Check firewall rules:**
+   ```bash
+   sudo ufw status | grep 10443
+   ```
+
+### IP Allow List Not Working
+
+1. Verify file path is correct in configuration
+2. Check file format (one IP per line)
+3. Ensure file has Unix line endings (LF, not CRLF)
+4. Restart server after modifying the file
+5. Check file permissions (server must be able to read it)
+
+### Brute Force Protection Blocking Legitimate Users
+
+1. Add trusted IPs to allow list
+2. Temporarily disable brute force protection for troubleshooting
+3. Review logs to identify root cause of failures
+4. Verify credentials are correct
+5. Check for automated scripts causing repeated failures
+
+## Related Topics
+
+- [Server Query Authentication](/server-query/authentication) - Configure Server Query access
+- [HTTPS Query Interface](/server-query/http) - HTTP and HTTPS configuration details
+- [SSH Query Interface](/server-query/ssh) - SSH configuration and key management
+- [Permissions](/advanced/permissions) - Configure permission system security

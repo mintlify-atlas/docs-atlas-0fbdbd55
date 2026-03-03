@@ -1,0 +1,404 @@
+---
+title: Database Configuration
+description: Configure SQLite or MariaDB database backends for TeamSpeak 6 Server
+icon: database
+---
+
+TeamSpeak 6 Server supports two database backends: SQLite (default) and MariaDB. This page covers configuration for both options.
+
+## Database Plugins
+
+<ParamField path="--db-plugin" type="string" default="sqlite3">
+  Specifies the database plugin to use.
+  
+  **Options:** `sqlite3`, `mariadb`  
+  **Environment Variable:** `TSSERVER_DATABASE_PLUGIN`
+</ParamField>
+
+<CodeGroup>
+```bash SQLite (Default)
+./tsserver --db-plugin sqlite3
+```
+
+```bash MariaDB
+./tsserver --db-plugin mariadb
+```
+</CodeGroup>
+
+## SQLite Configuration
+
+SQLite is the default database backend and requires minimal configuration. It's ideal for small to medium-sized deployments.
+
+### SQLite-Specific Options
+
+<ParamField path="--db-skip-integrity-check" type="boolean" default="false">
+  Skip database integrity check at startup. Only applicable to SQLite.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SKIP_INTEGRITY_CHECK`
+</ParamField>
+
+### SQLite Example
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml docker-compose.yml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        ports:
+          - "9987:9987/udp"
+          - "30033:30033/tcp"
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_VOICE_IP=0.0.0.0
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+        volumes:
+          - teamspeak-data:/var/tsserver
+    
+    volumes:
+      teamspeak-data:
+        name: teamspeak-data
+    ```
+  </Tab>
+  <Tab title="CLI">
+    ```bash
+    ./tsserver \
+      --accept-license \
+      --db-plugin sqlite3 \
+      --db-sql-create-path create_sqlite
+    ```
+  </Tab>
+  <Tab title="YAML">
+    ```yaml tsserver.yaml
+    server:
+      accept-license: accept
+      
+      database:
+        plugin: sqlite3
+        sql-create-path: create_sqlite
+        client-keep-days: 30
+        config:
+          skip-integrity-check: 0
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  SQLite stores the database in a single file within the server's data directory. No additional database server is required.
+</Info>
+
+## MariaDB Configuration
+
+MariaDB is recommended for production deployments, high-availability setups, and servers with large user bases.
+
+### Connection Parameters
+
+<ParamField path="--db-host" type="string" default="127.0.0.1">
+  The hostname or IP address of your database server.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_HOST`
+</ParamField>
+
+<ParamField path="--db-port" type="integer" default="5432">
+  The port used to connect to your database server. For MariaDB, use 3306.
+  
+  **Range:** 1-65535  
+  **Environment Variable:** `TSSERVER_DATABASE_PORT`
+</ParamField>
+
+<ParamField path="--db-name" type="string" default="teamspeak">
+  The name of the database to use.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_NAME`
+</ParamField>
+
+<ParamField path="--db-username" type="string" default="">
+  The username for database authentication.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_USERNAME`
+</ParamField>
+
+<ParamField path="--db-password" type="string" default="">
+  The password for database authentication.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_PASSWORD`
+</ParamField>
+
+<ParamField path="--db-socket" type="string" default="">
+  Socket file to use for database connection (alternative to host/port).
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SOCKET`
+</ParamField>
+
+<ParamField path="--db-timeout" type="integer" default="10">
+  Timeout in seconds when connecting to the database.
+  
+  **Range:** 1-432000  
+  **Environment Variable:** `TSSERVER_DATABASE_TIMEOUT`
+</ParamField>
+
+<ParamField path="--db-connections" type="integer" default="10">
+  Number of connections to establish to the database.
+  
+  **Range:** 2-100  
+  **Environment Variable:** `TSSERVER_DATABASE_CONNECTIONS`
+</ParamField>
+
+### MariaDB Example
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml docker-compose.yml
+    services:
+      teamspeak:
+        image: teamspeaksystems/teamspeak6-server:latest
+        container_name: teamspeak-server
+        restart: unless-stopped
+        ports:
+          - "9987:9987/udp"
+          - "30033:30033/tcp"
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_VOICE_IP=0.0.0.0
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+          
+          # Database settings
+          - TSSERVER_DATABASE_PLUGIN=mariadb
+          - TSSERVER_DATABASE_SQL_CREATE_PATH=create_mariadb
+          - TSSERVER_DATABASE_HOST=mariadb
+          - TSSERVER_DATABASE_PORT=3306
+          - TSSERVER_DATABASE_NAME=teamspeak
+          - TSSERVER_DATABASE_USERNAME=teamspeak
+          - TSSERVER_DATABASE_PASSWORD=YourPasswordHere
+        volumes:
+          - teamspeak-data:/var/tsserver
+        depends_on:
+          mariadb:
+            condition: service_healthy
+      
+      mariadb:
+        image: mariadb:latest
+        container_name: mariadb
+        environment:
+          - MYSQL_ROOT_PASSWORD=SuperSecretPassword
+          - MYSQL_DATABASE=teamspeak
+          - MYSQL_USER=teamspeak
+          - MYSQL_PASSWORD=YourPasswordHere
+        volumes:
+          - mariadb-data:/var/lib/mysql
+        restart: unless-stopped
+        healthcheck:
+          test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+          start_period: 10s
+          interval: 10s
+          timeout: 5s
+          retries: 3
+    
+    volumes:
+      teamspeak-data:
+        name: teamspeak-data
+      mariadb-data:
+        name: mariadb-data
+    ```
+  </Tab>
+  <Tab title="CLI">
+    ```bash
+    ./tsserver \
+      --accept-license \
+      --db-plugin mariadb \
+      --db-host 192.168.1.10 \
+      --db-port 3306 \
+      --db-name teamspeak \
+      --db-username tsuser \
+      --db-password secretpass \
+      --db-connections 10 \
+      --db-sql-create-path create_mariadb
+    ```
+  </Tab>
+  <Tab title="YAML">
+    ```yaml tsserver.yaml
+    server:
+      accept-license: accept
+      
+      database:
+        plugin: mariadb
+        sql-create-path: create_mariadb
+        client-keep-days: 30
+        config:
+          host: mariadb
+          port: 3306
+          name: teamspeak
+          username: teamspeak
+          password: YourPasswordHere
+          connections: 10
+          timeout: 10
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  **Security Best Practice:** Never commit database passwords to version control. Use environment variables or secrets management for production deployments.
+</Warning>
+
+## Common Database Options
+
+These options apply to both SQLite and MariaDB.
+
+### SQL Paths
+
+<ParamField path="--db-sql-path" type="string" default="sql">
+  Path to folder containing SQL queries used by the server.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SQL_PATH`
+</ParamField>
+
+<ParamField path="--db-sql-create-path" type="string" default="create_sqlite">
+  Subdirectory in SQL path to use for database creation scripts.
+  
+  **Values:**
+  - `create_sqlite` - For SQLite
+  - `create_mariadb` - For MariaDB
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SQL_CREATE_PATH`
+</ParamField>
+
+<Info>
+  The `sql-create-path` must match your database plugin. Use `create_sqlite` for SQLite or `create_mariadb` for MariaDB.
+</Info>
+
+### Client Data Retention
+
+<ParamField path="--db-client-keep-days" type="integer" default="30">
+  Number of days to keep client data in the database. Older client records are automatically purged.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_CLIENT_KEEP_DAYS`
+</ParamField>
+
+```bash
+export TSSERVER_DATABASE_CLIENT_KEEP_DAYS=90
+```
+
+### Query Logging
+
+<ParamField path="--db-log-queries" type="boolean" default="false">
+  Enable logging of all SQL queries. Useful for debugging but can impact performance.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_LOG_QUERIES`
+</ParamField>
+
+<Warning>
+  Only enable query logging for debugging purposes. It can generate large log files and impact server performance.
+</Warning>
+
+## Database Maintenance
+
+### Clear Database
+
+<ParamField path="--clear-database" type="boolean" default="false">
+  Resets the database completely, deleting all servers, clients, channels, and permissions.
+</ParamField>
+
+<Warning>
+  **DANGER:** The `--clear-database` flag will permanently delete all data. Use with extreme caution and only when you intend to reset your server completely.
+</Warning>
+
+```bash
+# This will DELETE ALL DATA
+./tsserver --clear-database
+```
+
+### Permission Updates
+
+<ParamField path="--no-permission-update" type="boolean" default="false">
+  Do not apply permission changes during server updates.
+  
+  **Environment Variable:** `TSSERVER_SKIP_PERMISSION_UPDATE`
+</ParamField>
+
+<Info>
+  By default, TeamSpeak applies permission updates when upgrading to a new version. Use this flag if you have custom permission configurations that should not be modified.
+</Info>
+
+## Database Comparison
+
+<Tabs>
+  <Tab title="SQLite">
+    **Advantages:**
+    - Zero configuration required
+    - No separate database server needed
+    - Fast for small to medium deployments
+    - Simple backup (single file)
+    
+    **Best For:**
+    - Small to medium servers (< 100 concurrent users)
+    - Single-server deployments
+    - Development and testing
+    - Simple backup requirements
+    
+    **Limitations:**
+    - Single server only (no clustering)
+    - Lower concurrent connection performance
+    - File-based locking
+  </Tab>
+  <Tab title="MariaDB">
+    **Advantages:**
+    - Better performance at scale
+    - Support for multiple server instances
+    - Advanced backup and replication
+    - Better concurrent connection handling
+    
+    **Best For:**
+    - Large servers (100+ concurrent users)
+    - High-availability setups
+    - Multiple TeamSpeak instances
+    - Production deployments
+    
+    **Requirements:**
+    - Separate database server
+    - More complex configuration
+    - Additional maintenance
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+### Connection Issues
+
+If the server cannot connect to MariaDB:
+
+1. Verify the database server is running
+2. Check network connectivity from the TeamSpeak server
+3. Confirm the database user has proper permissions
+4. Verify the database name exists
+5. Check firewall rules allow connections on port 3306
+
+```bash
+# Test MariaDB connection
+mysql -h mariadb -P 3306 -u teamspeak -p teamspeak
+```
+
+### Database Initialization
+
+If the database fails to initialize:
+
+1. Ensure `sql-create-path` matches your database plugin
+2. Verify SQL scripts exist in the specified path
+3. Check database user has CREATE and ALTER permissions
+4. Review server logs for specific error messages
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Settings" icon="server" href="/configuration/server-settings">
+    Configure core server parameters
+  </Card>
+  <Card title="Ports & Networking" icon="network-wired" href="/configuration/ports-networking">
+    Set up ServerQuery and networking
+  </Card>
+</CardGroup>

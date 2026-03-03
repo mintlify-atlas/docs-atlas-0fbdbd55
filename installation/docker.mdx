@@ -1,0 +1,424 @@
+---
+title: Docker Installation
+description: Install and run TeamSpeak 6 Server using Docker
+---
+
+The easiest and recommended way to run the TeamSpeak 6 Server is with Docker. It provides an isolated, portable, and easily manageable environment, making setup and maintenance straightforward.
+
+## Prerequisites
+
+Before you begin, ensure you have Docker installed on your system:
+
+- [Docker Engine](https://docs.docker.com/engine/install/) (version 20.10 or later)
+- [Docker Compose](https://docs.docker.com/compose/install/) (version 2.0 or later, optional but recommended)
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="Docker Run">
+    ### Quick Start with docker run
+
+    For a quick start, you can use the `docker run` command. This method is ideal for testing or simple deployments.
+
+    <Steps>
+      <Step title="Run the TeamSpeak 6 Server container">
+        Execute the following command to start the server in detached mode:
+
+        ```bash
+        docker run -d \
+          --name teamspeak-server \
+          -p 9987:9987/udp \
+          -p 30033:30033 \
+          -e TSSERVER_LICENSE_ACCEPTED=accept \
+          -v teamspeak-data:/var/tsserver/ \
+          teamspeaksystems/teamspeak6-server:latest
+        ```
+
+        <Note>
+          The `-d` flag runs the container in detached mode (background). The volume `teamspeak-data` will persist your server data.
+        </Note>
+      </Step>
+
+      <Step title="Retrieve the ServerAdmin privilege key">
+        After starting the container, check the logs to get your ServerAdmin privilege key:
+
+        ```bash
+        docker logs -f teamspeak-server
+        ```
+
+        Look for a line containing the ServerAdmin privilege key. Save this key securely - you'll need it to configure your server.
+
+        <Warning>
+          The ServerAdmin privilege key is only shown once in the logs during the first startup. Make sure to save it immediately.
+        </Warning>
+      </Step>
+
+      <Step title="Verify the server is running">
+        Check that the container is running:
+
+        ```bash
+        docker ps | grep teamspeak-server
+        ```
+
+        You should see the container listed with status "Up".
+      </Step>
+    </Steps>
+
+    ### Managing the Container
+
+    Use these commands to manage your TeamSpeak 6 Server container:
+
+    <CodeGroup>
+      ```bash Stop
+      docker stop teamspeak-server
+      ```
+
+      ```bash Start
+      docker start teamspeak-server
+      ```
+
+      ```bash Restart
+      docker restart teamspeak-server
+      ```
+
+      ```bash View Logs
+      docker logs -f teamspeak-server
+      ```
+
+      ```bash Remove Container
+      docker rm -f teamspeak-server
+      ```
+    </CodeGroup>
+
+    <Warning>
+      Removing the container does NOT delete your data. The data is stored in the `teamspeak-data` volume. To permanently delete all server data, you must also remove the volume:
+      
+      ```bash
+      docker volume rm teamspeak-data
+      ```
+    </Warning>
+  </Tab>
+
+  <Tab title="Docker Compose">
+    ### Recommended: Docker Compose
+
+    For persistent setups and production environments, Docker Compose is recommended. It provides better configuration management and easier deployment.
+
+    <Steps>
+      <Step title="Choose your database backend">
+        TeamSpeak 6 Server supports two database backends:
+
+        - **SQLite** (default) - Best for small to medium servers, simpler setup
+        - **MariaDB** - Better for larger servers with high traffic, requires separate database container
+
+        Choose the configuration that best fits your needs below.
+      </Step>
+
+      <Step title="Create a docker-compose.yaml file">
+        <Tabs>
+          <Tab title="SQLite (Simple)">
+            Create a `docker-compose.yaml` file with the following content:
+
+            ```yaml docker-compose.yaml
+            services:
+              teamspeak:
+                image: teamspeaksystems/teamspeak6-server:latest
+                container_name: teamspeak-server
+                restart: unless-stopped
+                ports:
+                  - "9987:9987/udp"    # Default voice port
+                  - "30033:30033/tcp"  # File transfer port
+                  # - "10022:10022/tcp" # (Optional) ServerQuery SSH port
+                  # - "10080:10080/tcp"  # (Optional) WebQuery port
+                environment:
+                  - TSSERVER_LICENSE_ACCEPTED=accept
+                  - TSSERVER_DEFAULT_PORT=9987
+                  - TSSERVER_VOICE_IP=0.0.0.0
+                  - TSSERVER_FILE_TRANSFER_PORT=30033
+                  - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+                  # - TSSERVER_QUERY_HTTP_ENABLED=true
+                  # - TSSERVER_QUERY_SSH_ENABLED=false
+                  # - TSSERVER_MACHINE_ID=my_unique_machine_id
+                  # - TSSERVER_LOG_PATH=/var/tsserver/logs
+                  # - TSSERVER_QUERY_ADMIN_PASSWORD=secretpassword
+                volumes:
+                  - teamspeak-data:/var/tsserver
+
+            volumes:
+              teamspeak-data:
+                name: teamspeak-data
+            ```
+
+            <Info>
+              SQLite is the default database and requires no additional configuration. It's perfect for most use cases.
+            </Info>
+          </Tab>
+
+          <Tab title="MariaDB (Advanced)">
+            Create a `docker-compose.yaml` file with the following content:
+
+            ```yaml docker-compose.yaml
+            services:
+              teamspeak:
+                image: teamspeaksystems/teamspeak6-server:latest
+                container_name: teamspeak-server
+                restart: unless-stopped
+                ports:
+                  - "9987:9987/udp"   # Default voice port
+                  - "30033:30033/tcp" # File transfer port
+                  # - "10080:10080/tcp" # WebQuery port
+                  # - "10022:10022/tcp" # SSHQuery port
+                environment:
+                  - TSSERVER_LICENSE_ACCEPTED=accept
+                  - TSSERVER_DEFAULT_PORT=9987
+                  - TSSERVER_VOICE_IP=0.0.0.0
+                  - TSSERVER_FILE_TRANSFER_PORT=30033
+                  - TSSERVER_FILE_TRANSFER_IP=0.0.0.0
+                  # - TSSERVER_QUERY_HTTP_ENABLED=true
+                  # - TSSERVER_QUERY_SSH_ENABLED=true
+
+                  # Database settings
+                  - TSSERVER_DATABASE_PLUGIN=mariadb
+                  - TSSERVER_DATABASE_SQL_CREATE_PATH=create_mariadb
+                  - TSSERVER_DATABASE_HOST=mariadb
+                  - TSSERVER_DATABASE_PORT=3306
+                  - TSSERVER_DATABASE_NAME=teamspeak
+                  - TSSERVER_DATABASE_USERNAME=teamspeak
+                  - TSSERVER_DATABASE_PASSWORD=YourPasswordHere
+                volumes:
+                  - teamspeak-data:/var/tsserver
+                depends_on:
+                  mariadb:
+                    condition: service_healthy
+
+              mariadb:
+                image: mariadb:latest
+                container_name: mariadb
+                environment:
+                  - MYSQL_ROOT_PASSWORD=SuperSecretPassword
+                  - MYSQL_DATABASE=teamspeak
+                  - MYSQL_USER=teamspeak
+                  - MYSQL_PASSWORD=YourPasswordHere
+                volumes:
+                  - mariadb-data:/var/lib/mysql
+                restart: unless-stopped
+                healthcheck:
+                  test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+                  start_period: 10s
+                  interval: 10s
+                  timeout: 5s
+                  retries: 3
+
+            volumes:
+              teamspeak-data:
+                name: teamspeak-data
+              mariadb-data:
+                name: mariadb-data
+            ```
+
+            <Warning>
+              **Change the passwords!** Replace `YourPasswordHere` and `SuperSecretPassword` with strong, unique passwords before deploying.
+            </Warning>
+          </Tab>
+        </Tabs>
+      </Step>
+
+      <Step title="Start the server">
+        Run the following command in the directory containing your `docker-compose.yaml` file:
+
+        ```bash
+        docker compose up -d
+        ```
+
+        <Info>
+          The `-d` flag runs the services in detached mode (background).
+        </Info>
+      </Step>
+
+      <Step title="Retrieve the ServerAdmin privilege key">
+        View the logs to get your ServerAdmin privilege key:
+
+        ```bash
+        docker compose logs -f teamspeak
+        ```
+
+        Save the ServerAdmin privilege key that appears in the logs during the first startup.
+      </Step>
+
+      <Step title="Verify the server is running">
+        Check the status of your services:
+
+        ```bash
+        docker compose ps
+        ```
+
+        All services should show as "Up" or "healthy".
+      </Step>
+    </Steps>
+
+    ### Managing with Docker Compose
+
+    <CodeGroup>
+      ```bash Stop
+      docker compose stop
+      ```
+
+      ```bash Start
+      docker compose start
+      ```
+
+      ```bash Restart
+      docker compose restart
+      ```
+
+      ```bash View Logs
+      docker compose logs -f
+      ```
+
+      ```bash Stop and Remove
+      docker compose down
+      ```
+    </CodeGroup>
+
+    <Note>
+      Running `docker compose down` removes the containers but keeps your data volumes intact.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Port Configuration
+
+The TeamSpeak 6 Server uses the following ports:
+
+| Port | Protocol | Purpose | Required |
+|------|----------|---------|----------|
+| 9987 | UDP | Voice communication | Yes |
+| 30033 | TCP | File transfers | Yes |
+| 10080 | TCP | WebQuery (HTTP) | Optional |
+| 10022 | TCP | ServerQuery (SSH) | Optional |
+
+<Warning>
+  **Important for Docker:** When using file transfers, ensure that the internal container port matches the external host port. File transfers rely on clients connecting directly to this port - mismatches will cause connectivity issues.
+  
+  For example, if you map `-p 30033:30033`, the server will work correctly. But if you map `-p 31000:30033`, file transfers will fail.
+</Warning>
+
+## Verification Steps
+
+After installation, verify your server is working correctly:
+
+<Steps>
+  <Step title="Check container status">
+    <CodeGroup>
+      ```bash Docker Run
+      docker ps | grep teamspeak-server
+      ```
+
+      ```bash Docker Compose
+      docker compose ps
+      ```
+    </CodeGroup>
+
+    The container should be in "Up" status.
+  </Step>
+
+  <Step title="Test network connectivity">
+    Verify the ports are accessible:
+
+    ```bash
+    # Check if voice port is listening
+    nc -uz localhost 9987
+
+    # Check if file transfer port is listening
+    nc -z localhost 30033
+    ```
+
+    <Info>
+      You may need to install `netcat` (`nc`) if it's not already available on your system.
+    </Info>
+  </Step>
+
+  <Step title="Connect with TeamSpeak 6 Client">
+    1. Download the [TeamSpeak 6 Client](https://teamspeak.com/en/downloads/)
+    2. Open the client and connect to your server using:
+       - **Address:** Your server's IP or domain
+       - **Port:** 9987 (or your custom port)
+    3. Use the ServerAdmin privilege key from the logs to gain admin access
+  </Step>
+</Steps>
+
+## Environment Variables
+
+You can customize your server using environment variables. Here are the most commonly used ones:
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `TSSERVER_LICENSE_ACCEPTED` | Accept the server license (required) | - |
+| `TSSERVER_DEFAULT_PORT` | UDP voice port for the server | 9987 |
+| `TSSERVER_FILE_TRANSFER_PORT` | TCP port for file transfers | 30033 |
+| `TSSERVER_VOICE_IP` | IP address to bind voice port to | 0.0.0.0 |
+| `TSSERVER_FILE_TRANSFER_IP` | IP address to bind file transfer port to | 0.0.0.0 |
+| `TSSERVER_QUERY_HTTP_ENABLED` | Enable WebQuery (HTTP) interface | false |
+| `TSSERVER_QUERY_SSH_ENABLED` | Enable ServerQuery (SSH) interface | false |
+| `TSSERVER_QUERY_ADMIN_PASSWORD` | Set a custom serveradmin password | - |
+| `TSSERVER_DATABASE_PLUGIN` | Database backend (sqlite3 or mariadb) | sqlite3 |
+
+For a complete list of configuration options, see the [Configuration](/configuration/overview) documentation.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container exits immediately">
+    The most common cause is not accepting the license. Ensure you have:
+    
+    ```bash
+    -e TSSERVER_LICENSE_ACCEPTED=accept
+    ```
+    
+    Check the logs for the exact error:
+    
+    ```bash
+    docker logs teamspeak-server
+    ```
+  </Accordion>
+
+  <Accordion title="Cannot connect to the server">
+    1. Verify the container is running: `docker ps`
+    2. Check if ports are properly mapped: `docker port teamspeak-server`
+    3. Ensure your firewall allows connections on ports 9987/udp and 30033/tcp
+    4. Verify you're using the correct server address and port
+  </Accordion>
+
+  <Accordion title="File transfers not working">
+    Ensure the file transfer port mapping is correct. The internal and external ports must match:
+    
+    ```bash
+    # Correct
+    -p 30033:30033
+    
+    # Incorrect - will cause file transfer issues
+    -p 31000:30033
+    ```
+  </Accordion>
+
+  <Accordion title="Lost ServerAdmin privilege key">
+    If you lost your ServerAdmin key, you can set a custom password using:
+    
+    ```bash
+    -e TSSERVER_QUERY_ADMIN_PASSWORD=your_password
+    ```
+    
+    Then restart the container and use the ServerQuery interface to generate a new privilege key.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Learn how to customize your server settings
+  </Card>
+  <Card title="Server Management" icon="server" href="/management">
+    Manage your server and virtual instances
+  </Card>
+</CardGroup>

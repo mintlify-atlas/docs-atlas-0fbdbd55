@@ -1,0 +1,435 @@
+---
+title: CLI Options
+description: Complete reference for all TeamSpeak 6 Server command-line options
+---
+
+This page provides a comprehensive reference for all command-line options available in TeamSpeak 6 Server. You can use these flags when starting the server to configure its behavior.
+
+## Usage
+
+```bash
+./tsserver [OPTIONS]
+```
+
+## General Options
+
+<ParamField path="-h, --help" type="boolean">
+  Prints the help message and exits.
+</ParamField>
+
+<ParamField path="-v, --version" type="boolean">
+  Displays program version information and exits.
+</ParamField>
+
+<ParamField path="--accept-license" type="boolean">
+  Confirms you have read and accepted the server license agreement.
+  
+  **Environment Variable:** `TSSERVER_LICENSE_ACCEPTED`
+</ParamField>
+
+<ParamField path="--write-config-file" type="boolean">
+  Writes the current configuration to the config file.
+</ParamField>
+
+<ParamField path="--config-file" type="string" default="tsserver.yaml">
+  Configuration file to load.
+  
+  **Environment Variable:** `TSSERVER_CONFIG_FILE`
+</ParamField>
+
+<ParamField path="--license-path" type="string" default=".">
+  Path where the server will look for the server license (`licensekey.dat`).
+  
+  **Environment Variable:** `TSSERVER_LICENSE_PATH`
+</ParamField>
+
+## Server Configuration
+
+<ParamField path="--default-voice-port" type="integer" default="9987">
+  Permanently sets the default voice port for the first virtual server created.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_DEFAULT_PORT`
+</ParamField>
+
+<ParamField path="--voice-ip" type="string" default="[0.0.0.0,::]">
+  IP address for the server to bind the voice port to. Can be specified multiple times for binding to multiple interfaces.
+  
+  **Environment Variable:** `TSSERVER_VOICE_IP`
+</ParamField>
+
+<ParamField path="--machine-id" type="string">
+  A string to distinguish this instance from other instances using the same database.
+  
+  **Environment Variable:** `TSSERVER_MACHINE_ID`
+</ParamField>
+
+<ParamField path="--threads-voice-udp" type="integer" default="5">
+  Number of threads to use for voice processing.
+  
+  **Range:** 1 - 16
+  
+  **Environment Variable:** `TSSERVER_VOICE_UDP_THREADS`
+</ParamField>
+
+## Logging
+
+<ParamField path="--log-path" type="string" default="logs">
+  Path to the directory where log files are stored.
+  
+  **Environment Variable:** `TSSERVER_LOG_PATH`
+</ParamField>
+
+<ParamField path="--log-append" type="boolean">
+  Write one ever-growing log file per virtual server instead of creating new log files.
+  
+  **Environment Variable:** `TSSERVER_APPEND_LOGS`
+</ParamField>
+
+## Virtual Server Management
+
+<ParamField path="--no-default-virtual-server" type="boolean">
+  If specified, no default server is created even if no server exists in the database.
+  
+  **Environment Variable:** `TSSERVER_NO_DEFAULT_SERVER`
+</ParamField>
+
+## File Transfer
+
+<ParamField path="--filetransfer-port" type="integer" default="30033">
+  Port on which to listen and advertise for file transfer connections.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_PORT`
+  
+  <Warning>
+  **Docker Note:** When running inside a Docker container, ensure that the **internal container port matches the external host port**. File transfers rely on clients connecting directly to this port. Mismatches between the container's listening port and the published port will cause connectivity issues.
+  </Warning>
+</ParamField>
+
+<ParamField path="--filetransfer-ip" type="string" default="[0.0.0.0,::]">
+  The address on which to listen for file transfer connections. Can be specified multiple times for binding to multiple interfaces.
+  
+  **Environment Variable:** `TSSERVER_FILE_TRANSFER_IP`
+</ParamField>
+
+## Database Configuration
+
+### General Database Options
+
+<ParamField path="--db-plugin" type="string" default="sqlite3">
+  Specifies the database plugin to use (e.g., `sqlite3`, `mariadb`, `postgresql`).
+  
+  **Environment Variable:** `TSSERVER_DATABASE_PLUGIN`
+</ParamField>
+
+<ParamField path="--db-sql-path" type="string" default="sql">
+  Path to folder containing SQL queries used by the server.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SQL_PATH`
+</ParamField>
+
+<ParamField path="--db-sql-create-path" type="string" default="create_sqlite">
+  Subdirectory in SQL path to use for DB creation scripts (e.g., `create_mariadb`, `create_sqlite`).
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SQL_CREATE_PATH`
+</ParamField>
+
+<ParamField path="--db-client-keep-days" type="integer" default="30">
+  Number of days to keep clients in the database before cleanup.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_CLIENT_KEEP_DAYS`
+</ParamField>
+
+<ParamField path="--db-skip-integrity-check" type="boolean">
+  SQLite only: skip DB integrity check at startup. Use with caution.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SKIP_INTEGRITY_CHECK`
+</ParamField>
+
+<ParamField path="--db-log-queries" type="boolean">
+  Enable logging of SQL queries. Useful for debugging but can impact performance.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_LOG_QUERIES`
+</ParamField>
+
+<ParamField path="--clear-database" type="boolean">
+  ⚠️ **WARNING:** Resets the database completely (deletes all servers, clients, etc.). Use with extreme caution.
+</ParamField>
+
+<ParamField path="--no-permission-update" type="boolean">
+  Do not apply permission changes during server updates.
+  
+  **Environment Variable:** `TSSERVER_SKIP_PERMISSION_UPDATE`
+</ParamField>
+
+### Database Connection Options
+
+<ParamField path="--db-host" type="string" default="127.0.0.1">
+  Database hostname or IP address.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_HOST`
+</ParamField>
+
+<ParamField path="--db-port" type="integer" default="5432">
+  Database port.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_DATABASE_PORT`
+</ParamField>
+
+<ParamField path="--db-socket" type="string">
+  Socket file to use for database connection (alternative to host/port).
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SOCKET`
+</ParamField>
+
+<ParamField path="--db-timeout" type="integer" default="10">
+  Timeout in seconds when connecting to the database.
+  
+  **Range:** 1 - 432000 (5 days)
+  
+  **Environment Variable:** `TSSERVER_DATABASE_TIMEOUT`
+</ParamField>
+
+<ParamField path="--db-name" type="string" default="teamspeak">
+  Name of the database to use.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_NAME`
+</ParamField>
+
+<ParamField path="--db-username" type="string">
+  The username to use for database authentication.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_USERNAME`
+</ParamField>
+
+<ParamField path="--db-password" type="string">
+  The password to use for database authentication.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_PASSWORD`
+  
+  <Warning>
+  Consider using environment variables instead of passing passwords via command line to avoid exposure in process lists.
+  </Warning>
+</ParamField>
+
+<ParamField path="--db-connections" type="integer" default="10">
+  Number of connections to establish to the database.
+  
+  **Range:** 2 - 100
+  
+  **Environment Variable:** `TSSERVER_DATABASE_CONNECTIONS`
+</ParamField>
+
+## Query Interface
+
+### General Query Options
+
+<ParamField path="--query-pool-size" type="integer" default="2">
+  How many threads to use for query command processing.
+  
+  **Range:** 2 - 32
+  
+  **Environment Variable:** `TSSERVER_QUERY_POOL_SIZE`
+</ParamField>
+
+<ParamField path="--query-log-timing" type="integer" default="3600">
+  Interval in seconds after which to log query statistics.
+  
+  **Range:** 10 - 31556952 (1 year)
+  
+  **Environment Variable:** `TSSERVER_QUERY_LOG_TIMING`
+</ParamField>
+
+<ParamField path="--query-ip-allow-list" type="string" default="query_ip_allowlist.txt">
+  File path listing IPs exempt from query flood protection. One IP per line.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ALLOW_LIST`
+</ParamField>
+
+<ParamField path="--query-ip-block-list" type="string" default="query_ip_denylist.txt">
+  File path listing IPs blocked from the query interface. One IP per line.
+  
+  **Environment Variable:** `TSSERVER_QUERY_DENY_LIST`
+</ParamField>
+
+<ParamField path="--query-admin-password" type="string">
+  Override the query password for the built-in serveradmin account, overriding the database value.
+  
+  **Environment Variable:** `TSSERVER_QUERY_ADMIN_PASSWORD`
+</ParamField>
+
+<ParamField path="--query-log-commands" type="boolean">
+  Log every command received on the query interface. Useful for debugging but can create large logs.
+  
+  **Environment Variable:** `TSSERVER_QUERY_LOG_COMMANDS`
+</ParamField>
+
+<ParamField path="--query-skip-brute-force-check" type="boolean">
+  Skip brute force checking on query interface connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SKIP_BRUTE_FORCE_CHECK`
+</ParamField>
+
+<ParamField path="--query-buffer-mb" type="integer" default="20">
+  How much memory (in MB) to allocate for query connection buffering.
+  
+  **Range:** 20 - 100
+  
+  **Environment Variable:** `TSSERVER_QUERY_BUFFER_MB`
+</ParamField>
+
+<ParamField path="--query-documentation-path" type="string" default="serverquerydocs">
+  Path to the query documentation files.
+  
+  **Environment Variable:** `TSSERVER_QUERY_DOCUMENTATION_PATH`
+</ParamField>
+
+<ParamField path="--query-timeout" type="integer" default="300">
+  Timeout in seconds before query connections expire due to inactivity.
+  
+  **Environment Variable:** `TSSERVER_QUERY_TIMEOUT`
+</ParamField>
+
+### SSH Query Options
+
+<ParamField path="--query-ssh-enable" type="boolean">
+  Enable the SSH query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_ENABLED`
+</ParamField>
+
+<ParamField path="--query-ssh-port" type="integer" default="10022">
+  Port on which to listen for SSH query connections.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_PORT`
+</ParamField>
+
+<ParamField path="--query-ssh-ip" type="string" default="[0.0.0.0,::]">
+  Address to listen on for SSH query connections. Can be specified multiple times for binding to multiple interfaces.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_IP`
+</ParamField>
+
+<ParamField path="--query-ssh-rsa-key" type="string" default="ssh_host_rsa_key">
+  Path to the SSH RSA host key file.
+  
+  **Environment Variable:** `TSSERVER_QUERY_SSH_RSA_KEY`
+</ParamField>
+
+### HTTP Query Options
+
+<ParamField path="--query-http-enable" type="boolean">
+  Enable the HTTP query interface.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTP_ENABLED`
+</ParamField>
+
+<ParamField path="--query-http-port" type="integer" default="10080">
+  Port on which to listen for Web Query connections.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTP_PORT`
+</ParamField>
+
+<ParamField path="--query-http-ip" type="string" default="[0.0.0.0,::]">
+  Address to listen on for Web Query connections. Can be specified multiple times for binding to multiple interfaces.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTP_IP`
+</ParamField>
+
+### HTTPS Query Options
+
+<ParamField path="--query-https-enable" type="boolean">
+  Enable the HTTPS query interface for secure Web Query connections.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_ENABLED`
+</ParamField>
+
+<ParamField path="--query-https-port" type="integer" default="10443">
+  Port on which to listen for secure Web Query connections.
+  
+  **Range:** 1 - 65535
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_PORT`
+</ParamField>
+
+<ParamField path="--query-https-ip" type="string" default="[0.0.0.0,::]">
+  Address to listen on for secure Web Query connections. Can be specified multiple times for binding to multiple interfaces.
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_IP`
+</ParamField>
+
+<ParamField path="--query-https-certificate" type="string">
+  Path to certificate file for HTTPS Web Query (PEM format).
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_CERT`
+</ParamField>
+
+<ParamField path="--query-https-private-key" type="string">
+  Path to private key file used with the certificate (PEM format).
+  
+  **Environment Variable:** `TSSERVER_QUERY_HTTPS_PRIVATE_KEY`
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="--http-proxy" type="string">
+  Proxy server used for external connections (e.g., license validation, accounting).
+  
+  **Environment Variable:** `TSSERVER_HTTP_PROXY`
+</ParamField>
+
+<ParamField path="--crashdump-path" type="string" default="crashdumps">
+  Path where crash dumps should be written for debugging purposes.
+  
+  **Environment Variable:** `TSSERVER_CRASHDUMP_PATH`
+</ParamField>
+
+<ParamField path="--daemon" type="boolean">
+  Run the server in the background (daemon mode). Linux/Unix only.
+  
+  **Environment Variable:** `TSSERVER_DAEMON`
+</ParamField>
+
+<ParamField path="--pid-file" type="string">
+  File to write the process ID to when running in daemon mode.
+  
+  **Environment Variable:** `TSSERVER_PID_FILE`
+</ParamField>
+
+<ParamField path="--hints-enabled" type="boolean">
+  Enable permission hints. Can impact performance on large servers with many permissions.
+  
+  **Environment Variable:** `TSSERVER_HINTS_ENABLED`
+</ParamField>
+
+<ParamField path="--maxmind-db-path" type="string">
+  Path to the MaxMind GeoIP database for geolocation features.
+  
+  **Environment Variable:** `TSSERVER_MAXMIND_DB_PATH`
+</ParamField>
+
+<ParamField path="--administrative-domain" type="string">
+  Administrative domain for internal or regulatory identification purposes.
+  
+  **Environment Variable:** `TSSERVER_ADMINISTRATIVE_DOMAIN`
+</ParamField>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="leaf" href="/reference/environment-variables">
+    Complete list of environment variables
+  </Card>
+  <Card title="YAML Configuration" icon="file-code" href="/reference/yaml-schema">
+    YAML configuration file schema
+  </Card>
+</CardGroup>

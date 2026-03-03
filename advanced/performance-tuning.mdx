@@ -1,0 +1,574 @@
+---
+title: "Performance Tuning"
+description: "Optimize TeamSpeak 6 Server performance with thread configuration, connection pools, and buffer settings"
+icon: "gauge-high"
+---
+
+## Overview
+
+TeamSpeak 6 Server provides several configuration options to optimize performance for your specific hardware and workload. This guide covers thread configuration, database connection pooling, buffer settings, and other performance-related parameters.
+
+## Voice Processing Threads
+
+The server uses multiple threads to process voice data. Adjusting the thread count can significantly impact performance.
+
+### Voice UDP Threads
+
+<ParamField path="threads-voice-udp" type="integer" default="5">
+  Number of threads to use for voice processing.
+  
+  **Range:** 1 - 16
+  
+  **Environment Variable:** `TSSERVER_VOICE_UDP_THREADS`
+  
+  ```yaml
+  server:
+    threads-voice-udp: 5
+  ```
+  
+  ```bash
+  ./tsserver --threads-voice-udp 5
+  ```
+</ParamField>
+
+### Optimal Thread Configuration
+
+The optimal number of voice threads depends on your hardware:
+
+| CPU Cores | Concurrent Users | Recommended Threads |
+|-----------|------------------|---------------------|
+| 2-4       | < 50             | 2-3                 |
+| 4-8       | 50-200           | 4-6                 |
+| 8-16      | 200-500          | 6-10                |
+| 16+       | 500+             | 10-16               |
+
+<Tip>
+  Start with the default value (5) and increase if you notice voice quality issues during high load. Monitor CPU usage to ensure you're not over-threading.
+</Tip>
+
+### Thread Tuning Guidelines
+
+**Increase threads when:**
+- CPU usage is high but cores aren't fully utilized
+- Voice quality degrades during peak usage
+- Server handles many simultaneous talkers
+- Running on multi-core systems (8+ cores)
+
+**Decrease threads when:**
+- Running on limited CPU resources (VPS, containers)
+- Server has few concurrent users (< 50)
+- Context switching overhead is high
+- Other services share the same CPU
+
+<Warning>
+  Setting too many threads can actually decrease performance due to context switching overhead. More threads isn't always better.
+</Warning>
+
+## Database Connection Pool
+
+The database connection pool manages connections between the server and database. Proper sizing is crucial for performance.
+
+### Connection Pool Size
+
+<ParamField path="db-connections" type="integer" default="10">
+  Number of connections to establish to the database.
+  
+  **Range:** 2 - 100
+  
+  **Environment Variable:** `TSSERVER_DATABASE_CONNECTIONS`
+  
+  ```yaml
+  server:
+    database:
+      connections: 10
+  ```
+  
+  ```bash
+  ./tsserver --db-connections 10
+  ```
+</ParamField>
+
+### Sizing Database Connections
+
+Connection pool sizing depends on your workload:
+
+| Scenario | Users | Virtual Servers | Recommended Connections |
+|----------|-------|-----------------|-------------------------|
+| Small    | < 100 | 1-2             | 5-10                    |
+| Medium   | 100-500 | 3-10          | 10-20                   |
+| Large    | 500-2000 | 10-50         | 20-50                   |
+| Enterprise | 2000+ | 50+           | 50-100                  |
+
+### Connection Pool Best Practices
+
+1. **Start conservative:** Begin with default (10) and increase based on monitoring
+2. **Monitor usage:** Track active connections vs. available connections
+3. **Database limits:** Ensure database server supports total connections across all instances
+4. **Multi-instance setups:** Total connections = connections per instance × number of instances
+
+<Note>
+  For multi-instance deployments sharing a database, ensure your database server's max_connections is higher than the sum of all instance connection pools.
+</Note>
+
+### Database Connection Timeout
+
+<ParamField path="db-timeout" type="integer" default="10">
+  Timeout in seconds when connecting to the database.
+  
+  **Range:** 1 - 432000 (5 days)
+  
+  **Environment Variable:** `TSSERVER_DATABASE_TIMEOUT`
+  
+  ```yaml
+  server:
+    database:
+      config:
+        timeout: 10
+  ```
+</ParamField>
+
+<Tip>
+  Increase timeout for database servers over high-latency network connections. Decrease for local databases to fail fast on issues.
+</Tip>
+
+## Query Interface Performance
+
+### Query Pool Size
+
+<ParamField path="query-pool-size" type="integer" default="2">
+  Number of threads to use for Server Query command processing.
+  
+  **Range:** 2 - 32
+  
+  **Environment Variable:** `TSSERVER_QUERY_POOL_SIZE`
+  
+  ```yaml
+  server:
+    query:
+      pool-size: 2
+  ```
+  
+  ```bash
+  ./tsserver --query-pool-size 2
+  ```
+</ParamField>
+
+#### Query Pool Sizing
+
+| Query Load | Concurrent Connections | Recommended Pool Size |
+|------------|------------------------|------------------------|
+| Light      | 1-5                    | 2-4                    |
+| Moderate   | 5-20                   | 4-8                    |
+| Heavy      | 20-50                  | 8-16                   |
+| Very Heavy | 50+                    | 16-32                  |
+
+<Note>
+  Query pool size should match your concurrent Server Query usage patterns. If you primarily use Server Query for occasional administration, keep this low. If you have automated systems constantly querying the server, increase accordingly.
+</Note>
+
+### Query Buffer Size
+
+<ParamField path="query-buffer-mb" type="integer" default="20">
+  Memory (in MB) to allocate for Server Query connection buffering.
+  
+  **Range:** 20 - 100
+  
+  **Environment Variable:** `TSSERVER_QUERY_BUFFER_MB`
+  
+  ```yaml
+  server:
+    query:
+      buffer-mb: 20
+  ```
+  
+  ```bash
+  ./tsserver --query-buffer-mb 20
+  ```
+</ParamField>
+
+<Warning>
+  Increasing buffer size uses more memory. Only increase if you're processing large Server Query responses or experiencing buffer-related errors.
+</Warning>
+
+### Query Timeout
+
+<ParamField path="query-timeout" type="integer" default="300">
+  Timeout in seconds before Server Query connections are automatically closed due to inactivity.
+  
+  **Environment Variable:** `TSSERVER_QUERY_TIMEOUT`
+  
+  ```yaml
+  server:
+    query:
+      timeout: 300
+  ```
+</ParamField>
+
+## Performance Monitoring
+
+### Query Statistics Logging
+
+<ParamField path="query-log-timing" type="integer" default="3600">
+  Interval in seconds to log Server Query performance statistics.
+  
+  **Range:** 10 - 31556952 (1 year)
+  
+  **Environment Variable:** `TSSERVER_QUERY_LOG_TIMING`
+  
+  ```yaml
+  server:
+    query:
+      log-timing: 3600
+  ```
+</ParamField>
+
+Statistics logged include:
+- Total queries processed
+- Average query execution time
+- Slow queries
+- Connection pool usage
+
+<Tip>
+  Enable query timing logs to identify performance bottlenecks. Review logs periodically to optimize configuration.
+</Tip>
+
+## Database Performance
+
+### Query Logging
+
+<ParamField path="db-log-queries" type="boolean" default="false">
+  Enables logging of all SQL queries.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_LOG_QUERIES`
+  
+  ```yaml
+  server:
+    database:
+      config:
+        log-queries: 0
+  ```
+</ParamField>
+
+<Warning>
+  **Performance Impact:** Query logging significantly increases I/O and log file size. Only enable for debugging database performance issues.
+</Warning>
+
+### SQLite Integrity Check
+
+<ParamField path="db-skip-integrity-check" type="boolean" default="false">
+  Skips SQLite database integrity check at startup.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_SKIP_INTEGRITY_CHECK`
+  
+  ```yaml
+  server:
+    database:
+      config:
+        skip-integrity-check: 0
+  ```
+</ParamField>
+
+<Note>
+  Integrity checks add startup time but ensure database health. Only skip for large databases where startup time is critical and you have other validation methods.
+</Note>
+
+### Database Client Cleanup
+
+<ParamField path="db-client-keep-days" type="integer" default="30">
+  Number of days to keep inactive client records in the database.
+  
+  **Environment Variable:** `TSSERVER_DATABASE_CLIENT_KEEP_DAYS`
+  
+  ```yaml
+  server:
+    database:
+      client-keep-days: 30
+  ```
+</ParamField>
+
+Reducing retention period:
+- Decreases database size
+- Improves query performance
+- Reduces backup size and time
+
+<Tip>
+  For high-churn servers (many temporary users), reduce retention to 7-14 days. For community servers where history matters, increase to 90+ days.
+</Tip>
+
+## System-Level Optimization
+
+### Process Priority
+
+Increase server process priority:
+
+```bash
+# Linux: Run with higher priority
+nice -n -10 ./tsserver
+
+# Or use systemd Nice parameter
+[Service]
+Nice=-10
+```
+
+### File Descriptor Limits
+
+Increase file descriptor limits for high-concurrency:
+
+```bash
+# Check current limit
+ulimit -n
+
+# Increase for current session
+ulimit -n 65535
+
+# Permanent change in /etc/security/limits.conf
+tsserver soft nofile 65535
+tsserver hard nofile 65535
+```
+
+### Memory Settings
+
+Ensure sufficient memory is available:
+
+```bash
+# Monitor memory usage
+top -p $(pidof tsserver)
+
+# Or use htop
+htop -p $(pidof tsserver)
+```
+
+Memory requirements (approximate):
+- Base server: 50-100 MB
+- Per virtual server: 10-20 MB
+- Per connected user: 0.5-2 MB
+
+### Disk I/O Optimization
+
+**For SQLite databases:**
+```bash
+# Use faster storage (SSD)
+# Enable write-ahead logging (WAL mode)
+sqlite3 ts3server.sqlitedb "PRAGMA journal_mode=WAL;"
+```
+
+**For MariaDB/PostgreSQL:**
+- Place database on SSD storage
+- Optimize database server configuration
+- Use connection pooling
+- Enable query caching
+
+## Network Performance
+
+### TCP Settings
+
+Optimize TCP settings for Server Query:
+
+```bash
+# Linux kernel tuning
+sudo sysctl -w net.ipv4.tcp_fin_timeout=30
+sudo sysctl -w net.ipv4.tcp_keepalive_time=300
+sudo sysctl -w net.ipv4.tcp_keepalive_probes=5
+sudo sysctl -w net.ipv4.tcp_keepalive_intvl=15
+```
+
+### UDP Buffer Sizes
+
+Increase UDP buffer sizes for voice traffic:
+
+```bash
+# Increase UDP receive buffer
+sudo sysctl -w net.core.rmem_max=8388608
+sudo sysctl -w net.core.rmem_default=262144
+
+# Increase UDP send buffer
+sudo sysctl -w net.core.wmem_max=8388608
+sudo sysctl -w net.core.wmem_default=262144
+```
+
+## Monitoring and Metrics
+
+### Key Metrics to Monitor
+
+1. **CPU Usage**
+   - Per-core utilization
+   - Context switches
+   - Thread count
+
+2. **Memory Usage**
+   - Resident memory (RSS)
+   - Virtual memory
+   - Memory growth over time
+
+3. **Database Performance**
+   - Connection pool utilization
+   - Query execution time
+   - Slow queries
+
+4. **Network**
+   - Bandwidth usage
+   - Packet loss
+   - Connection count
+
+5. **Voice Quality**
+   - Codec latency
+   - Packet jitter
+   - Voice buffer underruns
+
+### Monitoring Tools
+
+```bash
+# Real-time monitoring
+htop
+iotop
+iftop
+
+# Log analysis
+tail -f logs/ts3server_*.log | grep -E 'ERROR|WARNING'
+
+# Server Query monitoring
+serverinfo
+clientlist
+channellist
+```
+
+## Performance Benchmarking
+
+### Load Testing
+
+1. **Simulate users** with automated clients
+2. **Monitor metrics** during test
+3. **Identify bottlenecks** (CPU, memory, network, database)
+4. **Adjust configuration** based on results
+5. **Retest** to verify improvements
+
+### Configuration Testing Matrix
+
+Test different configurations:
+
+| Test | Voice Threads | DB Connections | Query Pool | Result |
+|------|---------------|----------------|------------|--------|
+| Baseline | 5 | 10 | 2 | (measure) |
+| Test 1 | 8 | 10 | 2 | (compare) |
+| Test 2 | 5 | 20 | 2 | (compare) |
+| Test 3 | 8 | 20 | 4 | (compare) |
+
+## Optimization Checklist
+
+### Initial Setup
+- [ ] Configure voice threads based on CPU cores
+- [ ] Size database connection pool appropriately
+- [ ] Set query pool size for expected Server Query load
+- [ ] Configure client retention period
+- [ ] Enable query timing logs
+
+### Regular Maintenance
+- [ ] Monitor resource usage weekly
+- [ ] Review slow queries monthly
+- [ ] Analyze query timing logs
+- [ ] Check database size and growth rate
+- [ ] Verify backup and restore performance
+
+### Performance Issues
+- [ ] Review recent configuration changes
+- [ ] Check system resource availability
+- [ ] Analyze database query performance
+- [ ] Monitor network latency and packet loss
+- [ ] Review server logs for errors or warnings
+
+## Troubleshooting Performance Issues
+
+### High CPU Usage
+
+1. **Check thread configuration:**
+   - Reduce voice threads if context switching is high
+   - Verify thread count matches CPU cores
+
+2. **Disable expensive features:**
+   ```yaml
+   server:
+     hints-enabled: 0  # Disable permission hints
+     database:
+       config:
+         log-queries: 0  # Disable query logging
+   ```
+
+3. **Review permission complexity:**
+   - Simplify permission hierarchies
+   - Reduce client-specific permissions
+
+### High Memory Usage
+
+1. **Reduce buffer sizes:**
+   ```yaml
+   server:
+     query:
+       buffer-mb: 20
+   ```
+
+2. **Limit connection pools:**
+   ```yaml
+   server:
+     database:
+       connections: 10
+     query:
+       pool-size: 2
+   ```
+
+3. **Check for memory leaks:**
+   - Monitor memory growth over time
+   - Restart server regularly if leak suspected
+   - Update to latest version
+
+### Database Performance Issues
+
+1. **Optimize connection pool:**
+   ```yaml
+   server:
+     database:
+       connections: 20  # Increase if pool exhausted
+       config:
+         timeout: 30  # Increase for slow networks
+   ```
+
+2. **Database maintenance:**
+   ```bash
+   # SQLite: Vacuum database
+   sqlite3 ts3server.sqlitedb "VACUUM;"
+   
+   # SQLite: Analyze tables
+   sqlite3 ts3server.sqlitedb "ANALYZE;"
+   ```
+
+3. **Consider migration:**
+   - SQLite → MariaDB for better concurrency
+   - Local DB → Remote DB with faster hardware
+
+### Network Performance Issues
+
+1. **Check network configuration:**
+   ```bash
+   # Test latency
+   ping -c 10 <server-ip>
+   
+   # Test bandwidth
+   iperf3 -c <server-ip>
+   ```
+
+2. **Optimize UDP settings:**
+   - Increase UDP buffer sizes (see Network Performance section)
+   - Check for packet loss
+   - Verify QoS settings
+
+3. **Review voice thread configuration:**
+   ```yaml
+   server:
+     threads-voice-udp: 8  # Increase for high load
+   ```
+
+## Related Topics
+
+- [Database Configuration](/configuration/database) - Configure database connections
+- [Virtual Servers](/advanced/virtual-servers) - Multi-instance deployments
+- [Server Query](/server-query/overview) - Monitor server via Server Query
+- [Logging](/operations/logging) - Configure logging for performance analysis

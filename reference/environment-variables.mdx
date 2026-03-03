@@ -1,0 +1,619 @@
+---
+title: Environment Variables
+description: Complete reference for all TeamSpeak 6 Server environment variables
+---
+
+This page provides a comprehensive reference for all environment variables that can be used to configure TeamSpeak 6 Server. Environment variables are particularly useful for containerized deployments and automated setups.
+
+## Overview
+
+Environment variables provide an alternative to command-line flags for configuring the TeamSpeak 6 Server. They are especially useful in:
+
+- Docker and container deployments
+- Automated deployment scripts
+- CI/CD pipelines
+- Keeping sensitive data (like passwords) out of command histories
+
+<Note>
+If both a command-line flag and an environment variable are set, the command-line flag takes precedence.
+</Note>
+
+## General Configuration
+
+<Accordion title="General & Core">
+
+<ParamField path="TSSERVER_LICENSE_ACCEPTED" type="string">
+  Confirms you have read and accepted the server license agreement.
+  
+  **Accepted values:** `1`, `accept`, `true`
+  
+  **CLI equivalent:** `--accept-license`
+</ParamField>
+
+<ParamField path="TSSERVER_CONFIG_FILE" type="string" default="tsserver.yaml">
+  Specifies the configuration file to load.
+  
+  **CLI equivalent:** `--config-file`
+</ParamField>
+
+<ParamField path="TSSERVER_LICENSE_PATH" type="string" default=".">
+  Directory path where the server will look for the `licensekey.dat` file.
+  
+  **CLI equivalent:** `--license-path`
+</ParamField>
+
+</Accordion>
+
+## Server Configuration
+
+<Accordion title="Voice & Network">
+
+<ParamField path="TSSERVER_DEFAULT_PORT" type="integer" default="9987">
+  Permanently sets the default UDP voice port for the first virtual server created.
+  
+  **Range:** 1 - 65535
+  
+  **CLI equivalent:** `--default-voice-port`
+</ParamField>
+
+<ParamField path="TSSERVER_VOICE_IP" type="string" default="0.0.0.0,::">
+  IP address(es) for the server to bind the voice port to. Multiple IPs can be separated by commas.
+  
+  **CLI equivalent:** `--voice-ip`
+  
+  **Example:**
+  ```bash
+  TSSERVER_VOICE_IP="0.0.0.0,::,192.168.1.100"
+  ```
+</ParamField>
+
+<ParamField path="TSSERVER_MACHINE_ID" type="string">
+  A string to distinguish this instance from other instances using the same database.
+  
+  **CLI equivalent:** `--machine-id`
+  
+  <Tip>
+  Useful in clustered or multi-instance deployments to identify which server instance is handling requests.
+  </Tip>
+</ParamField>
+
+<ParamField path="TSSERVER_VOICE_UDP_THREADS" type="integer" default="5">
+  Number of threads to use for voice processing.
+  
+  **Range:** 1 - 16
+  
+  **CLI equivalent:** `--threads-voice-udp`
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Virtual Server">
+
+<ParamField path="TSSERVER_NO_DEFAULT_SERVER" type="boolean">
+  If set, no default server is created even if no server exists in the database.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--no-default-virtual-server`
+</ParamField>
+
+</Accordion>
+
+## Logging
+
+<Accordion title="Log Configuration">
+
+<ParamField path="TSSERVER_LOG_PATH" type="string" default="logs">
+  Path to the directory where log files are stored.
+  
+  **CLI equivalent:** `--log-path`
+</ParamField>
+
+<ParamField path="TSSERVER_APPEND_LOGS" type="boolean">
+  Write one ever-growing log file per virtual server instead of creating new log files.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--log-append`
+</ParamField>
+
+</Accordion>
+
+## File Transfer
+
+<Accordion title="File Transfer Settings">
+
+<ParamField path="TSSERVER_FILE_TRANSFER_PORT" type="integer" default="30033">
+  The TCP port used for file transfers.
+  
+  **Range:** 1 - 65535
+  
+  **CLI equivalent:** `--filetransfer-port`
+  
+  <Warning>
+  **Docker Note:** When running inside a Docker container, ensure that the **internal container port matches the external host port**. File transfers rely on clients connecting directly to this port.
+  </Warning>
+</ParamField>
+
+<ParamField path="TSSERVER_FILE_TRANSFER_IP" type="string" default="0.0.0.0,::">
+  The address(es) on which to listen for file transfer connections.
+  
+  **CLI equivalent:** `--filetransfer-ip`
+</ParamField>
+
+</Accordion>
+
+## Database Configuration
+
+<Accordion title="Database Settings">
+
+<ParamField path="TSSERVER_DATABASE_PLUGIN" type="string" default="sqlite3">
+  Specifies the database plugin to use.
+  
+  **Accepted values:** `sqlite3`, `mariadb`, `postgresql`
+  
+  **CLI equivalent:** `--db-plugin`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_SQL_PATH" type="string" default="sql">
+  Path to folder containing SQL queries used by the server.
+  
+  **CLI equivalent:** `--db-sql-path`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_SQL_CREATE_PATH" type="string" default="create_sqlite">
+  Subdirectory in SQL path to use for DB creation scripts.
+  
+  **Examples:** `create_sqlite`, `create_mariadb`, `create_postgresql`
+  
+  **CLI equivalent:** `--db-sql-create-path`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_CLIENT_KEEP_DAYS" type="integer" default="30">
+  Number of days to keep clients in the database before cleanup.
+  
+  **CLI equivalent:** `--db-client-keep-days`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_SKIP_INTEGRITY_CHECK" type="boolean">
+  SQLite only: skip DB integrity check at startup.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--db-skip-integrity-check`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_LOG_QUERIES" type="boolean">
+  Enable logging of SQL queries.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--db-log-queries`
+</ParamField>
+
+<ParamField path="TSSERVER_SKIP_PERMISSION_UPDATE" type="boolean">
+  Do not apply permission changes during server updates.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--no-permission-update`
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Database Connection">
+
+<ParamField path="TSSERVER_DATABASE_HOST" type="string" default="127.0.0.1">
+  Database hostname or IP address.
+  
+  **CLI equivalent:** `--db-host`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_PORT" type="integer" default="5432">
+  Database port.
+  
+  **Range:** 1 - 65535
+  
+  **CLI equivalent:** `--db-port`
+  
+  <Note>
+  Default port varies by database: PostgreSQL (5432), MariaDB/MySQL (3306)
+  </Note>
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_SOCKET" type="string">
+  Socket file to use for database connection (alternative to host/port).
+  
+  **CLI equivalent:** `--db-socket`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_TIMEOUT" type="integer" default="10">
+  Timeout in seconds when connecting to the database.
+  
+  **Range:** 1 - 432000
+  
+  **CLI equivalent:** `--db-timeout`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_NAME" type="string" default="teamspeak">
+  Name of the database to use.
+  
+  **CLI equivalent:** `--db-name`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_USERNAME" type="string">
+  The username to use for database authentication.
+  
+  **CLI equivalent:** `--db-username`
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_PASSWORD" type="string">
+  The password to use for database authentication.
+  
+  **CLI equivalent:** `--db-password`
+  
+  <Tip>
+  Using environment variables for passwords is more secure than command-line arguments, as they won't appear in process lists.
+  </Tip>
+</ParamField>
+
+<ParamField path="TSSERVER_DATABASE_CONNECTIONS" type="integer" default="10">
+  Number of connections to establish to the database.
+  
+  **Range:** 2 - 100
+  
+  **CLI equivalent:** `--db-connections`
+</ParamField>
+
+</Accordion>
+
+## Query Interface
+
+<Accordion title="General Query Settings">
+
+<ParamField path="TSSERVER_QUERY_POOL_SIZE" type="integer" default="2">
+  How many threads to use for query command processing.
+  
+  **Range:** 2 - 32
+  
+  **CLI equivalent:** `--query-pool-size`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_LOG_TIMING" type="integer" default="3600">
+  Interval in seconds after which to log query statistics.
+  
+  **Range:** 10 - 31556952
+  
+  **CLI equivalent:** `--query-log-timing`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_ALLOW_LIST" type="string" default="query_ip_allowlist.txt">
+  File path listing IPs exempt from query flood protection.
+  
+  **CLI equivalent:** `--query-ip-allow-list`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_DENY_LIST" type="string" default="query_ip_denylist.txt">
+  File path listing IPs blocked from the query interface.
+  
+  **CLI equivalent:** `--query-ip-block-list`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_ADMIN_PASSWORD" type="string">
+  Override the query password for the built-in serveradmin account.
+  
+  **CLI equivalent:** `--query-admin-password`
+  
+  <Warning>
+  This password should be kept secure. Consider using secrets management in production environments.
+  </Warning>
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_LOG_COMMANDS" type="boolean">
+  Log every command received on the query interface.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--query-log-commands`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_SKIP_BRUTE_FORCE_CHECK" type="boolean">
+  Skip brute force checking on query interface connections.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--query-skip-brute-force-check`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_BUFFER_MB" type="integer" default="20">
+  How much memory (in MB) to allocate for query connection buffering.
+  
+  **Range:** 20 - 100
+  
+  **CLI equivalent:** `--query-buffer-mb`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_DOCUMENTATION_PATH" type="string" default="serverquerydocs">
+  Path to the query documentation files.
+  
+  **CLI equivalent:** `--query-documentation-path`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_TIMEOUT" type="integer" default="300">
+  Timeout in seconds before query connections expire due to inactivity.
+  
+  **CLI equivalent:** `--query-timeout`
+</ParamField>
+
+</Accordion>
+
+<Accordion title="SSH Query">
+
+<ParamField path="TSSERVER_QUERY_SSH_ENABLED" type="boolean">
+  Enable the SSH query interface.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--query-ssh-enable`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_SSH_PORT" type="integer" default="10022">
+  Port on which to listen for SSH query connections.
+  
+  **Range:** 1 - 65535
+  
+  **CLI equivalent:** `--query-ssh-port`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_SSH_IP" type="string" default="0.0.0.0,::">
+  Address(es) to listen on for SSH query connections.
+  
+  **CLI equivalent:** `--query-ssh-ip`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_SSH_RSA_KEY" type="string" default="ssh_host_rsa_key">
+  Path to the SSH RSA host key file.
+  
+  **CLI equivalent:** `--query-ssh-rsa-key`
+</ParamField>
+
+</Accordion>
+
+<Accordion title="HTTP Query">
+
+<ParamField path="TSSERVER_QUERY_HTTP_ENABLED" type="boolean">
+  Enable the HTTP query interface.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--query-http-enable`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_HTTP_PORT" type="integer" default="10080">
+  Port on which to listen for Web Query connections.
+  
+  **Range:** 1 - 65535
+  
+  **CLI equivalent:** `--query-http-port`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_HTTP_IP" type="string" default="0.0.0.0,::">
+  Address(es) to listen on for Web Query connections.
+  
+  **CLI equivalent:** `--query-http-ip`
+</ParamField>
+
+</Accordion>
+
+<Accordion title="HTTPS Query">
+
+<ParamField path="TSSERVER_QUERY_HTTPS_ENABLED" type="boolean">
+  Enable the HTTPS query interface.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--query-https-enable`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_HTTPS_PORT" type="integer" default="10443">
+  Port on which to listen for secure Web Query connections.
+  
+  **Range:** 1 - 65535
+  
+  **CLI equivalent:** `--query-https-port`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_HTTPS_IP" type="string" default="0.0.0.0,::">
+  Address(es) to listen on for secure Web Query connections.
+  
+  **CLI equivalent:** `--query-https-ip`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_HTTPS_CERT" type="string">
+  Path to certificate file for HTTPS Web Query.
+  
+  **CLI equivalent:** `--query-https-certificate`
+</ParamField>
+
+<ParamField path="TSSERVER_QUERY_HTTPS_PRIVATE_KEY" type="string">
+  Path to private key file used with the certificate.
+  
+  **CLI equivalent:** `--query-https-private-key`
+</ParamField>
+
+</Accordion>
+
+## Advanced Configuration
+
+<Accordion title="Advanced Options">
+
+<ParamField path="TSSERVER_HTTP_PROXY" type="string">
+  Proxy server used for external connections.
+  
+  **CLI equivalent:** `--http-proxy`
+  
+  **Example:**
+  ```bash
+  TSSERVER_HTTP_PROXY="http://proxy.example.com:8080"
+  ```
+</ParamField>
+
+<ParamField path="TSSERVER_CRASHDUMP_PATH" type="string" default="crashdumps">
+  Path where crash dumps should be written.
+  
+  **CLI equivalent:** `--crashdump-path`
+</ParamField>
+
+<ParamField path="TSSERVER_DAEMON" type="boolean">
+  Run the server in the background (daemon mode).
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--daemon`
+</ParamField>
+
+<ParamField path="TSSERVER_PID_FILE" type="string">
+  File to write the process ID to when running in daemon mode.
+  
+  **CLI equivalent:** `--pid-file`
+</ParamField>
+
+<ParamField path="TSSERVER_HINTS_ENABLED" type="boolean">
+  Enable permission hints.
+  
+  **Accepted values:** `1`, `true`
+  
+  **CLI equivalent:** `--hints-enabled`
+  
+  <Warning>
+  Permission hints can impact performance on large servers with complex permission structures.
+  </Warning>
+</ParamField>
+
+<ParamField path="TSSERVER_MAXMIND_DB_PATH" type="string">
+  Path to the MaxMind GeoIP database.
+  
+  **CLI equivalent:** `--maxmind-db-path`
+</ParamField>
+
+<ParamField path="TSSERVER_ADMINISTRATIVE_DOMAIN" type="string">
+  Administrative domain for internal or regulatory identification.
+  
+  **CLI equivalent:** `--administrative-domain`
+</ParamField>
+
+</Accordion>
+
+## Docker Example
+
+Here's a complete example of using environment variables in a Docker deployment:
+
+<Tabs>
+  <Tab title="docker-compose.yml">
+    ```yaml
+    version: '3.8'
+    
+    services:
+      teamspeak:
+        image: teamspeak:latest
+        container_name: teamspeak-server
+        ports:
+          - "9987:9987/udp"  # Voice
+          - "30033:30033/tcp" # File Transfer
+          - "10022:10022/tcp" # SSH Query
+          - "10080:10080/tcp" # HTTP Query
+        environment:
+          - TSSERVER_LICENSE_ACCEPTED=accept
+          - TSSERVER_DEFAULT_PORT=9987
+          - TSSERVER_FILE_TRANSFER_PORT=30033
+          - TSSERVER_DATABASE_PLUGIN=mariadb
+          - TSSERVER_DATABASE_HOST=db
+          - TSSERVER_DATABASE_PORT=3306
+          - TSSERVER_DATABASE_NAME=teamspeak
+          - TSSERVER_DATABASE_USERNAME=tsserver
+          - TSSERVER_DATABASE_PASSWORD=secure_password
+          - TSSERVER_QUERY_SSH_ENABLED=1
+          - TSSERVER_QUERY_SSH_PORT=10022
+          - TSSERVER_QUERY_HTTP_ENABLED=1
+          - TSSERVER_QUERY_HTTP_PORT=10080
+        volumes:
+          - ./data:/var/ts6server
+        depends_on:
+          - db
+    
+      db:
+        image: mariadb:latest
+        environment:
+          - MYSQL_ROOT_PASSWORD=root_password
+          - MYSQL_DATABASE=teamspeak
+          - MYSQL_USER=tsserver
+          - MYSQL_PASSWORD=secure_password
+        volumes:
+          - ./db-data:/var/lib/mysql
+    ```
+  </Tab>
+  <Tab title="docker run">
+    ```bash
+    docker run -d \
+      --name teamspeak-server \
+      -p 9987:9987/udp \
+      -p 30033:30033/tcp \
+      -p 10022:10022/tcp \
+      -p 10080:10080/tcp \
+      -e TSSERVER_LICENSE_ACCEPTED=accept \
+      -e TSSERVER_DEFAULT_PORT=9987 \
+      -e TSSERVER_FILE_TRANSFER_PORT=30033 \
+      -e TSSERVER_DATABASE_PLUGIN=sqlite3 \
+      -e TSSERVER_QUERY_SSH_ENABLED=1 \
+      -e TSSERVER_QUERY_SSH_PORT=10022 \
+      -e TSSERVER_QUERY_HTTP_ENABLED=1 \
+      -e TSSERVER_QUERY_HTTP_PORT=10080 \
+      -v $(pwd)/data:/var/ts6server \
+      teamspeak:latest
+    ```
+  </Tab>
+  <Tab title=".env file">
+    ```bash
+    # License
+    TSSERVER_LICENSE_ACCEPTED=accept
+    TSSERVER_LICENSE_PATH=/var/ts6server
+    
+    # Network
+    TSSERVER_DEFAULT_PORT=9987
+    TSSERVER_VOICE_IP=0.0.0.0,::
+    TSSERVER_FILE_TRANSFER_PORT=30033
+    TSSERVER_FILE_TRANSFER_IP=0.0.0.0,::
+    
+    # Database
+    TSSERVER_DATABASE_PLUGIN=mariadb
+    TSSERVER_DATABASE_HOST=db
+    TSSERVER_DATABASE_PORT=3306
+    TSSERVER_DATABASE_NAME=teamspeak
+    TSSERVER_DATABASE_USERNAME=tsserver
+    TSSERVER_DATABASE_PASSWORD=secure_password
+    TSSERVER_DATABASE_CONNECTIONS=10
+    
+    # Query
+    TSSERVER_QUERY_SSH_ENABLED=1
+    TSSERVER_QUERY_SSH_PORT=10022
+    TSSERVER_QUERY_HTTP_ENABLED=1
+    TSSERVER_QUERY_HTTP_PORT=10080
+    TSSERVER_QUERY_ADMIN_PASSWORD=admin_password
+    
+    # Logging
+    TSSERVER_LOG_PATH=/var/ts6server/logs
+    TSSERVER_LOG_APPEND=0
+    ```
+  </Tab>
+</Tabs>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="CLI Options" icon="terminal" href="/reference/cli-options">
+    Complete list of command-line options
+  </Card>
+  <Card title="YAML Configuration" icon="file-code" href="/reference/yaml-schema">
+    YAML configuration file schema
+  </Card>
+</CardGroup>

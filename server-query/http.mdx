@@ -1,0 +1,345 @@
+---
+title: HTTP/HTTPS Query Interface
+description: Configure and use the HTTP and HTTPS Server Query protocols
+---
+
+The HTTP and HTTPS query interfaces provide REST-style access to your TeamSpeak 6 server. These protocols are ideal for web applications, modern APIs, and integration with web-based administration tools.
+
+## HTTP Configuration
+
+### Enable HTTP Query
+
+The HTTP query interface is disabled by default. You can enable it using any of these methods:
+
+<CodeGroup>
+```bash Command Line
+./tsserver --query-http-enable --query-http-port 10080
+```
+
+```bash Environment Variables
+export TSSERVER_QUERY_HTTP_ENABLED=1
+export TSSERVER_QUERY_HTTP_PORT=10080
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    http:
+      enable: 1
+      port: 10080
+      ip:
+        - 0.0.0.0
+        - "::"
+```
+</CodeGroup>
+
+### HTTP Configuration Options
+
+| Parameter | Environment Variable | Default | Type | Description |
+|-----------|---------------------|---------|------|-------------|
+| `--query-http-enable` | `TSSERVER_QUERY_HTTP_ENABLED` | `false` | Boolean | Enables the HTTP query interface |
+| `--query-http-port` | `TSSERVER_QUERY_HTTP_PORT` | `10080` | Integer (1-65535) | Port for HTTP query connections |
+| `--query-http-ip` | `TSSERVER_QUERY_HTTP_IP` | `[0.0.0.0, ::]` | String | IP addresses to bind for HTTP queries |
+
+## HTTPS Configuration
+
+### Enable HTTPS Query
+
+The HTTPS interface provides encrypted query connections using SSL/TLS. You'll need a valid certificate and private key.
+
+<Steps>
+  <Step title="Prepare SSL Certificate">
+    Obtain or generate an SSL certificate and private key:
+    
+    ```bash
+    # Generate self-signed certificate (for testing)
+    openssl req -x509 -newkey rsa:4096 -keyout query_key.pem -out query_cert.pem -days 365 -nodes
+    ```
+    
+    <Warning>
+    Self-signed certificates should only be used for testing. Use a certificate from a trusted CA in production.
+    </Warning>
+  </Step>
+  
+  <Step title="Configure HTTPS">
+    Enable HTTPS with your certificate files:
+    
+    <CodeGroup>
+    ```bash Command Line
+    ./tsserver \
+      --query-https-enable \
+      --query-https-port 10443 \
+      --query-https-certificate /path/to/query_cert.pem \
+      --query-https-private-key /path/to/query_key.pem
+    ```
+    
+    ```bash Environment Variables
+    export TSSERVER_QUERY_HTTPS_ENABLED=1
+    export TSSERVER_QUERY_HTTPS_PORT=10443
+    export TSSERVER_QUERY_HTTPS_CERT=/path/to/query_cert.pem
+    export TSSERVER_QUERY_HTTPS_PRIVATE_KEY=/path/to/query_key.pem
+    ```
+    
+    ```yaml tsserver.yaml
+    server:
+      query:
+        https:
+          enable: 1
+          port: 10443
+          ip:
+            - 0.0.0.0
+            - "::"
+          certificate: /path/to/query_cert.pem
+          private-key: /path/to/query_key.pem
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Verify HTTPS Connection">
+    Test your HTTPS connection:
+    
+    ```bash
+    curl -k https://your-server:10443/
+    ```
+  </Step>
+</Steps>
+
+### HTTPS Configuration Options
+
+| Parameter | Environment Variable | Default | Type | Description |
+|-----------|---------------------|---------|------|-------------|
+| `--query-https-enable` | `TSSERVER_QUERY_HTTPS_ENABLED` | `false` | Boolean | Enables the HTTPS query interface |
+| `--query-https-port` | `TSSERVER_QUERY_HTTPS_PORT` | `10443` | Integer (1-65535) | Port for HTTPS query connections |
+| `--query-https-ip` | `TSSERVER_QUERY_HTTPS_IP` | `[0.0.0.0, ::]` | String | IP addresses to bind for HTTPS queries |
+| `--query-https-certificate` | `TSSERVER_QUERY_HTTPS_CERT` | None | String | Path to SSL certificate file |
+| `--query-https-private-key` | `TSSERVER_QUERY_HTTPS_PRIVATE_KEY` | None | String | Path to SSL private key file |
+
+## Binding to Specific IP Addresses
+
+By default, the query interfaces bind to all available IPv4 and IPv6 addresses. You can restrict this to specific IPs:
+
+<CodeGroup>
+```bash Command Line (IPv4 only)
+./tsserver --query-http-enable --query-http-ip 192.168.1.100
+```
+
+```bash Command Line (Multiple IPs)
+./tsserver --query-http-enable --query-http-ip "192.168.1.100,2001:db8::1"
+```
+
+```yaml tsserver.yaml
+server:
+  query:
+    http:
+      enable: 1
+      port: 10080
+      ip:
+        - 192.168.1.100
+        - 2001:db8::1
+```
+</CodeGroup>
+
+## Complete Configuration Examples
+
+### HTTP Only
+
+Simple HTTP query interface for local network access:
+
+```yaml tsserver.yaml
+server:
+  query:
+    pool-size: 4
+    timeout: 300
+    buffer-mb: 20
+    admin-password: "http-query-password"
+    
+    http:
+      enable: 1
+      port: 10080
+      ip:
+        - 0.0.0.0
+        - "::"
+```
+
+### HTTPS Only (Production)
+
+Secure HTTPS configuration for production environments:
+
+```yaml tsserver.yaml
+server:
+  query:
+    pool-size: 8
+    timeout: 600
+    buffer-mb: 50
+    admin-password: "secure-https-password"
+    log-commands: 1
+    ip-allow-list: query_ip_allowlist.txt
+    
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: /etc/ssl/certs/teamspeak-query.crt
+      private-key: /etc/ssl/private/teamspeak-query.key
+```
+
+### Both HTTP and HTTPS
+
+Run both protocols simultaneously:
+
+```yaml tsserver.yaml
+server:
+  query:
+    pool-size: 6
+    timeout: 300
+    buffer-mb: 30
+    admin-password: "query-password"
+    
+    http:
+      enable: 1
+      port: 10080
+      ip:
+        - 127.0.0.1
+    
+    https:
+      enable: 1
+      port: 10443
+      ip:
+        - 0.0.0.0
+        - "::"
+      certificate: /etc/ssl/certs/teamspeak-query.crt
+      private-key: /etc/ssl/private/teamspeak-query.key
+```
+
+<Note>
+In this example, HTTP is restricted to localhost (127.0.0.1) for local administration, while HTTPS is available on all interfaces for remote access.
+</Note>
+
+## Docker Configuration
+
+When running TeamSpeak 6 in Docker, expose the query ports:
+
+<CodeGroup>
+```bash Docker Run (HTTP)
+docker run -d \
+  -p 10080:10080 \
+  -e TSSERVER_QUERY_HTTP_ENABLED=1 \
+  -e TSSERVER_QUERY_HTTP_PORT=10080 \
+  teamspeak6-server
+```
+
+```bash Docker Run (HTTPS)
+docker run -d \
+  -p 10443:10443 \
+  -v /path/to/certs:/certs \
+  -e TSSERVER_QUERY_HTTPS_ENABLED=1 \
+  -e TSSERVER_QUERY_HTTPS_PORT=10443 \
+  -e TSSERVER_QUERY_HTTPS_CERT=/certs/query_cert.pem \
+  -e TSSERVER_QUERY_HTTPS_PRIVATE_KEY=/certs/query_key.pem \
+  teamspeak6-server
+```
+
+```yaml docker-compose.yml
+version: '3.8'
+services:
+  teamspeak:
+    image: teamspeak6-server
+    ports:
+      - "10080:10080"
+      - "10443:10443"
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      TSSERVER_QUERY_HTTP_ENABLED: 1
+      TSSERVER_QUERY_HTTP_PORT: 10080
+      TSSERVER_QUERY_HTTPS_ENABLED: 1
+      TSSERVER_QUERY_HTTPS_PORT: 10443
+      TSSERVER_QUERY_HTTPS_CERT: /certs/query_cert.pem
+      TSSERVER_QUERY_HTTPS_PRIVATE_KEY: /certs/query_key.pem
+      TSSERVER_QUERY_ADMIN_PASSWORD: your-secure-password
+```
+</CodeGroup>
+
+## Firewall Configuration
+
+Ensure your firewall allows query traffic:
+
+```bash UFW (Ubuntu)
+sudo ufw allow 10080/tcp comment 'TeamSpeak HTTP Query'
+sudo ufw allow 10443/tcp comment 'TeamSpeak HTTPS Query'
+```
+
+```bash firewalld (CentOS/RHEL)
+sudo firewall-cmd --permanent --add-port=10080/tcp
+sudo firewall-cmd --permanent --add-port=10443/tcp
+sudo firewall-cmd --reload
+```
+
+```bash iptables
+sudo iptables -A INPUT -p tcp --dport 10080 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 10443 -j ACCEPT
+sudo iptables-save > /etc/iptables/rules.v4
+```
+
+## Testing Your Configuration
+
+<Steps>
+  <Step title="Verify Service is Listening">
+    Check that the server is listening on the configured ports:
+    
+    ```bash
+    netstat -tlnp | grep tsserver
+    # or
+    ss -tlnp | grep tsserver
+    ```
+    
+    You should see your configured HTTP and/or HTTPS ports listed.
+  </Step>
+  
+  <Step title="Test HTTP Connection">
+    Test the HTTP endpoint:
+    
+    ```bash
+    curl http://your-server:10080/
+    ```
+  </Step>
+  
+  <Step title="Test HTTPS Connection">
+    Test the HTTPS endpoint:
+    
+    ```bash
+    curl -k https://your-server:10443/
+    ```
+    
+    <Note>
+    The `-k` flag skips certificate verification. Remove it when using a trusted certificate.
+    </Note>
+  </Step>
+</Steps>
+
+## Security Best Practices
+
+<Warning>
+Follow these security guidelines when configuring HTTP/HTTPS query:
+</Warning>
+
+- **Use HTTPS in production**: Always use HTTPS for query connections over the internet
+- **Use trusted certificates**: Obtain certificates from a trusted CA for production use
+- **Restrict IP access**: Use `--query-ip-allow-list` to limit which IPs can connect
+- **Use strong passwords**: Set a strong admin password with `--query-admin-password`
+- **Enable logging**: Use `--query-log-commands` to audit query activity
+- **Limit exposure**: Bind to specific IPs instead of all interfaces when possible
+- **Keep HTTP local**: If using both protocols, restrict HTTP to localhost and use HTTPS for remote access
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="SSH Query" icon="terminal" href="/server-query/ssh">
+    Configure the SSH query interface
+  </Card>
+  <Card title="Authentication" icon="key" href="/server-query/authentication">
+    Set up query admin credentials
+  </Card>
+</CardGroup>

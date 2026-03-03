@@ -1,0 +1,570 @@
+---
+title: Windows Installation
+description: Install and run TeamSpeak 6 Server on Windows
+---
+
+This guide covers installing and running TeamSpeak 6 Server natively on Windows systems. This method is ideal for Windows-based hosting or local development.
+
+## System Requirements
+
+- **Operating System:** Windows 10, Windows 11, Windows Server 2016 or later
+- **Architecture:** x86_64 (64-bit)
+- **RAM:** Minimum 512 MB (1 GB+ recommended)
+- **Disk Space:** 100 MB for server files + space for database and logs
+- **Network:** Open ports 9987/UDP and 30033/TCP
+- **.NET Framework:** Not required (server is self-contained)
+
+## Installation
+
+<Steps>
+  <Step title="Download the server package">
+    Download the latest TeamSpeak 6 Server for Windows from the official website:
+
+    1. Visit the [TeamSpeak Downloads](https://teamspeak.com/en/downloads/) page
+    2. Download the Windows Server package (ZIP file)
+    3. Save it to a location of your choice, such as `C:\Downloads`
+
+    <Note>
+      The Windows server package is distributed as a ZIP archive that contains all necessary files.
+    </Note>
+  </Step>
+
+  <Step title="Extract the archive">
+    Extract the downloaded ZIP file:
+
+    1. Right-click the downloaded ZIP file
+    2. Select "Extract All..."
+    3. Choose a destination folder (e.g., `C:\TeamSpeak6-Server`)
+    4. Click "Extract"
+
+    <Tip>
+      Avoid paths with spaces or special characters to prevent potential issues.
+    </Tip>
+  </Step>
+
+  <Step title="Review the license">
+    Before starting the server, read the `LICENSE` file in the extracted folder to understand the terms of use.
+  </Step>
+
+  <Step title="Start the server">
+    There are two ways to start the server:
+
+    <Tabs>
+      <Tab title="Command Prompt">
+        1. Open Command Prompt (search for "cmd" in the Start menu)
+        2. Navigate to the server directory:
+        
+        ```cmd
+        cd C:\TeamSpeak6-Server
+        ```
+        
+        3. Start the server:
+        
+        ```cmd
+        tsserver.exe --accept-license
+        ```
+        
+        The server will start and display log output in the console window.
+      </Tab>
+
+      <Tab title="PowerShell">
+        1. Open PowerShell (search for "PowerShell" in the Start menu)
+        2. Navigate to the server directory:
+        
+        ```powershell
+        cd C:\TeamSpeak6-Server
+        ```
+        
+        3. Start the server:
+        
+        ```powershell
+        .\tsserver.exe --accept-license
+        ```
+        
+        The server will start and display log output in the PowerShell window.
+      </Tab>
+    </Tabs>
+
+    <Warning>
+      **Important:** Look for the ServerAdmin privilege key in the console output during the first startup. This key is displayed only once - **copy and save it immediately**!
+    </Warning>
+  </Step>
+
+  <Step title="Test the connection">
+    With the server running:
+
+    1. Download the [TeamSpeak 6 Client](https://teamspeak.com/en/downloads/)
+    2. Install and open the client
+    3. Connect to `localhost:9987` (or your server's IP address)
+    4. Use the ServerAdmin privilege key to gain admin access
+
+    If you can connect successfully, your server is working correctly!
+  </Step>
+</Steps>
+
+## Running as a Windows Service
+
+For production use, you should run the server as a Windows service so it starts automatically and runs in the background.
+
+<Steps>
+  <Step title="Open PowerShell as Administrator">
+    1. Search for "PowerShell" in the Start menu
+    2. Right-click "Windows PowerShell"
+    3. Select "Run as administrator"
+    4. Click "Yes" on the UAC prompt
+  </Step>
+
+  <Step title="Navigate to the server directory">
+    ```powershell
+    cd C:\TeamSpeak6-Server
+    ```
+  </Step>
+
+  <Step title="Install the server as a Windows service">
+    Use the built-in NSSM (Non-Sucking Service Manager) or create a service using `sc`:
+
+    <Tabs>
+      <Tab title="Using sc (Built-in)">
+        Create the service:
+
+        ```powershell
+        sc.exe create TeamSpeak6 binPath= "C:\TeamSpeak6-Server\tsserver.exe --accept-license" start= auto
+        ```
+
+        Set the service description:
+
+        ```powershell
+        sc.exe description TeamSpeak6 "TeamSpeak 6 Server - Voice Communication"
+        ```
+
+        <Note>
+          Note the space after `binPath=` and `start=` - this is required by the `sc` command.
+        </Note>
+      </Tab>
+
+      <Tab title="Using NSSM (Recommended)">
+        NSSM provides better service management and automatic restart capabilities.
+
+        1. Download [NSSM](https://nssm.cc/download) and extract it
+        2. Copy `nssm.exe` to `C:\TeamSpeak6-Server`
+        3. Install the service:
+
+        ```powershell
+        .\nssm.exe install TeamSpeak6 "C:\TeamSpeak6-Server\tsserver.exe" "--accept-license"
+        ```
+
+        4. Configure automatic restart on failure:
+
+        ```powershell
+        .\nssm.exe set TeamSpeak6 AppExit Default Restart
+        .\nssm.exe set TeamSpeak6 AppStdout "C:\TeamSpeak6-Server\logs\service.log"
+        .\nssm.exe set TeamSpeak6 AppStderr "C:\TeamSpeak6-Server\logs\service-error.log"
+        ```
+
+        <Tip>
+          NSSM automatically captures console output to log files, making troubleshooting easier.
+        </Tip>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Start the service">
+    Start the TeamSpeak 6 service:
+
+    ```powershell
+    Start-Service TeamSpeak6
+    ```
+
+    Check the service status:
+
+    ```powershell
+    Get-Service TeamSpeak6
+    ```
+
+    The status should show "Running".
+  </Step>
+
+  <Step title="Configure automatic startup">
+    Ensure the service starts automatically on boot:
+
+    ```powershell
+    Set-Service TeamSpeak6 -StartupType Automatic
+    ```
+  </Step>
+
+  <Step title="Retrieve the ServerAdmin key">
+    If this is the first startup, retrieve the ServerAdmin privilege key from the log files:
+
+    ```powershell
+    Get-Content "C:\TeamSpeak6-Server\logs\*" | Select-String -Pattern "serveradmin|privilege" -Context 0,2
+    ```
+
+    Save this key securely.
+  </Step>
+</Steps>
+
+## Service Management
+
+Use these PowerShell commands to manage your TeamSpeak 6 Server service:
+
+<CodeGroup>
+  ```powershell Start
+  Start-Service TeamSpeak6
+  ```
+
+  ```powershell Stop
+  Stop-Service TeamSpeak6
+  ```
+
+  ```powershell Restart
+  Restart-Service TeamSpeak6
+  ```
+
+  ```powershell Status
+  Get-Service TeamSpeak6
+  ```
+
+  ```powershell View Logs
+  Get-Content "C:\TeamSpeak6-Server\logs\ts3server_*.log" -Tail 50 -Wait
+  ```
+
+  ```powershell Remove Service
+  sc.exe delete TeamSpeak6
+  ```
+</CodeGroup>
+
+<Note>
+  Run PowerShell as Administrator to execute these service management commands.
+</Note>
+
+## Firewall Configuration
+
+You need to configure Windows Firewall to allow TeamSpeak traffic:
+
+<Steps>
+  <Step title="Open PowerShell as Administrator">
+    Right-click PowerShell and select "Run as administrator".
+  </Step>
+
+  <Step title="Create firewall rules">
+    Add firewall rules for the required ports:
+
+    ```powershell
+    # Allow TeamSpeak voice port (UDP)
+    New-NetFirewallRule -DisplayName "TeamSpeak 6 Voice" -Direction Inbound -Protocol UDP -LocalPort 9987 -Action Allow
+
+    # Allow file transfer port (TCP)
+    New-NetFirewallRule -DisplayName "TeamSpeak 6 File Transfer" -Direction Inbound -Protocol TCP -LocalPort 30033 -Action Allow
+
+    # Optional: WebQuery port
+    # New-NetFirewallRule -DisplayName "TeamSpeak 6 WebQuery" -Direction Inbound -Protocol TCP -LocalPort 10080 -Action Allow
+
+    # Optional: SSH Query port
+    # New-NetFirewallRule -DisplayName "TeamSpeak 6 SSH Query" -Direction Inbound -Protocol TCP -LocalPort 10022 -Action Allow
+    ```
+  </Step>
+
+  <Step title="Verify firewall rules">
+    Check that the rules were created:
+
+    ```powershell
+    Get-NetFirewallRule -DisplayName "TeamSpeak 6*" | Format-Table DisplayName, Enabled, Direction, Action
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  If you're running the server on a cloud provider or behind a router, you'll also need to configure port forwarding or security groups to allow external connections.
+</Tip>
+
+## Configuration
+
+You can configure the server using command-line arguments or a configuration file.
+
+### Using Command-Line Arguments
+
+When running manually, add arguments to the command:
+
+```cmd
+tsserver.exe --accept-license --default-voice-port 9987 --filetransfer-port 30033
+```
+
+For services, modify the service configuration:
+
+```powershell
+sc.exe config TeamSpeak6 binPath= "C:\TeamSpeak6-Server\tsserver.exe --accept-license --default-voice-port 9987"
+```
+
+### Using a Configuration File
+
+Generate a default configuration file:
+
+<Tabs>
+  <Tab title="Command Prompt">
+    ```cmd
+    cd C:\TeamSpeak6-Server
+    tsserver.exe --write-config-file
+    ```
+  </Tab>
+
+  <Tab title="PowerShell">
+    ```powershell
+    cd C:\TeamSpeak6-Server
+    .\tsserver.exe --write-config-file
+    ```
+  </Tab>
+</Tabs>
+
+This creates a `tsserver.yaml` file. Edit it with Notepad or your preferred text editor:
+
+```yaml tsserver.yaml
+server:
+  accept-license: accept
+  default-voice-port: 9987
+  voice-ip:
+    - 0.0.0.0
+    - "::"
+  filetransfer-port: 30033
+  filetransfer-ip:
+    - 0.0.0.0
+    - "::"
+  log-path: logs
+  license-path: .
+  
+  database:
+    plugin: sqlite3
+    sql-path: sql/
+    sql-create-path: sql/create_sqlite/
+    client-keep-days: 30
+
+  query:
+    http:
+      enable: false
+      port: 10080
+    ssh:
+      enable: false
+      port: 10022
+```
+
+After editing the configuration file, restart the service:
+
+```powershell
+Restart-Service TeamSpeak6
+```
+
+<Info>
+  For a complete list of configuration options, see the [Configuration](/configuration/overview) documentation.
+</Info>
+
+## Verification Steps
+
+<Steps>
+  <Step title="Check if the server process is running">
+    Open Task Manager (Ctrl+Shift+Esc) and look for `tsserver.exe` in the Processes or Details tab.
+
+    Or use PowerShell:
+
+    ```powershell
+    Get-Process tsserver
+    ```
+  </Step>
+
+  <Step title="Check listening ports">
+    Verify the server is listening on the correct ports:
+
+    ```powershell
+    netstat -ano | findstr "9987"
+    netstat -ano | findstr "30033"
+    ```
+
+    You should see the ports in the LISTENING state.
+  </Step>
+
+  <Step title="Check service status">
+    If running as a service:
+
+    ```powershell
+    Get-Service TeamSpeak6 | Format-List
+    ```
+
+    The status should be "Running".
+  </Step>
+
+  <Step title="Review log files">
+    Check the log files in `C:\TeamSpeak6-Server\logs` for any errors or warnings:
+
+    ```powershell
+    Get-Content "C:\TeamSpeak6-Server\logs\ts3server_*.log" -Tail 50
+    ```
+  </Step>
+
+  <Step title="Test client connection">
+    1. Download the [TeamSpeak 6 Client](https://teamspeak.com/en/downloads/)
+    2. Connect to your server's IP address and port 9987
+    3. Verify you can join and communicate
+  </Step>
+</Steps>
+
+## Updating the Server
+
+<Steps>
+  <Step title="Stop the server">
+    If running as a service:
+
+    ```powershell
+    Stop-Service TeamSpeak6
+    ```
+
+    If running manually, close the console window or press Ctrl+C.
+  </Step>
+
+  <Step title="Backup your data">
+    Create a backup of your server directory:
+
+    ```powershell
+    Copy-Item -Path "C:\TeamSpeak6-Server" -Destination "C:\TeamSpeak6-Server-Backup-$(Get-Date -Format 'yyyyMMdd')" -Recurse
+    ```
+
+    <Warning>
+      Always backup your server data before updating!
+    </Warning>
+  </Step>
+
+  <Step title="Download the new version">
+    Download the latest TeamSpeak 6 Server package for Windows and extract it to a temporary location.
+  </Step>
+
+  <Step title="Replace the server files">
+    1. Copy `tsserver.exe` from the new version to `C:\TeamSpeak6-Server`
+    2. Replace the `sql` directory with the new version
+    3. Keep your existing `tsserver.yaml`, database files, and logs
+
+    ```powershell
+    # Example - adjust paths as needed
+    Copy-Item -Path "C:\Temp\teamspeak6-server-windows\tsserver.exe" -Destination "C:\TeamSpeak6-Server" -Force
+    Copy-Item -Path "C:\Temp\teamspeak6-server-windows\sql" -Destination "C:\TeamSpeak6-Server" -Recurse -Force
+    ```
+
+    <Note>
+      Do not replace configuration files, database files, or logs - only the binary and SQL files.
+    </Note>
+  </Step>
+
+  <Step title="Start the server">
+    ```powershell
+    Start-Service TeamSpeak6
+    ```
+
+    Check the status:
+
+    ```powershell
+    Get-Service TeamSpeak6
+    ```
+
+    Review the logs to ensure the update was successful:
+
+    ```powershell
+    Get-Content "C:\TeamSpeak6-Server\logs\ts3server_*.log" -Tail 50
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server won't start">
+    Common causes and solutions:
+    
+    1. **License not accepted:** Ensure `--accept-license` is included in the command
+    2. **Port already in use:** Check if another application is using ports 9987 or 30033:
+    
+    ```powershell
+    netstat -ano | findstr "9987"
+    netstat -ano | findstr "30033"
+    ```
+    
+    3. **Permission issues:** Run as Administrator or check file permissions
+    4. **Missing files:** Verify all server files were extracted correctly
+  </Accordion>
+
+  <Accordion title="Service fails to start">
+    Check the Windows Event Viewer for detailed error messages:
+    
+    1. Open Event Viewer (search for "Event Viewer" in Start menu)
+    2. Navigate to Windows Logs > Application
+    3. Look for errors related to TeamSpeak6 service
+    
+    Also check the service configuration:
+    
+    ```powershell
+    sc.exe qc TeamSpeak6
+    ```
+  </Accordion>
+
+  <Accordion title="Cannot connect from client">
+    1. Verify the server is running:
+    
+    ```powershell
+    Get-Process tsserver
+    ```
+    
+    2. Check Windows Firewall rules:
+    
+    ```powershell
+    Get-NetFirewallRule -DisplayName "TeamSpeak 6*"
+    ```
+    
+    3. Test port connectivity:
+    
+    ```powershell
+    Test-NetConnection -ComputerName localhost -Port 30033
+    ```
+    
+    4. Ensure your router/firewall allows the required ports if connecting from outside your network
+  </Accordion>
+
+  <Accordion title="Lost ServerAdmin privilege key">
+    If you lost your ServerAdmin key:
+    
+    1. Stop the server
+    2. Set a custom admin password by adding to your `tsserver.yaml`:
+    
+    ```yaml
+    server:
+      query:
+        admin-password: your_secure_password
+    ```
+    
+    3. Start the server and use ServerQuery to generate a new privilege key
+    
+    Alternatively, check old log files:
+    
+    ```powershell
+    Get-ChildItem "C:\TeamSpeak6-Server\logs\*.log" | ForEach-Object { Get-Content $_.FullName | Select-String "serveradmin|privilege" }
+    ```
+  </Accordion>
+
+  <Accordion title="High CPU or memory usage">
+    1. Check the number of connected clients and channels
+    2. Review log files for errors or warnings
+    3. Consider adjusting thread settings in `tsserver.yaml`:
+    
+    ```yaml
+    server:
+      threads-voice-udp: 5  # Adjust based on CPU cores
+    ```
+    
+    4. Monitor performance using Task Manager or Performance Monitor
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Learn how to customize your server settings
+  </Card>
+  <Card title="Server Management" icon="server" href="/management">
+    Manage your server and virtual instances
+  </Card>
+</CardGroup>

@@ -1,0 +1,364 @@
+---
+title: "Monitoring"
+description: "Monitor your TeamSpeak 6 Server health and performance"
+---
+
+## Overview
+
+Proper monitoring ensures your TeamSpeak 6 Server runs smoothly and helps you identify issues before they impact users. This guide covers monitoring strategies for both Docker and binary installations.
+
+## Health Checks
+
+### Docker Health Checks
+
+Add health checks to your Docker Compose configuration to monitor container status:
+
+```yaml docker-compose.yaml
+services:
+  teamspeak:
+    image: teamspeaksystems/teamspeak6-server:latest
+    container_name: teamspeak-server
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9987"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    ports:
+      - "9987:9987/udp"
+      - "30033:30033/tcp"
+    environment:
+      - TSSERVER_LICENSE_ACCEPTED=accept
+    volumes:
+      - teamspeak-data:/var/tsserver
+
+volumes:
+  teamspeak-data:
+```
+
+Check container health status:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}"
+```
+
+### Process Monitoring
+
+For binary installations, monitor the server process:
+
+<Tabs>
+  <Tab title="Linux">
+    ```bash
+    # Check if server is running
+    ps aux | grep tsserver
+
+    # Monitor server with systemd
+    systemctl status teamspeak
+
+    # View server uptime
+    ps -p $(pgrep tsserver) -o etime=
+    ```
+  </Tab>
+  <Tab title="Windows">
+    ```powershell
+    # Check if server is running
+    Get-Process tsserver
+
+    # Monitor with Windows Service Manager
+    Get-Service -Name TeamSpeak6
+
+    # View detailed process information
+    Get-Process tsserver | Format-List *
+    ```
+  </Tab>
+</Tabs>
+
+## Port Connectivity
+
+Verify that all required ports are accessible:
+
+```bash
+# Check voice port (UDP)
+nc -zuv localhost 9987
+
+# Check file transfer port (TCP)
+nc -zv localhost 30033
+
+# Check ServerQuery HTTP port (if enabled)
+curl -I http://localhost:10080
+
+# Check ServerQuery SSH port (if enabled)
+telnet localhost 10022
+```
+
+<Note>
+  External connectivity testing should be performed from client machines to ensure firewall rules are correctly configured.
+</Note>
+
+## Resource Usage
+
+### Docker Container Resources
+
+Monitor resource consumption for Docker deployments:
+
+```bash
+# View real-time resource usage
+docker stats teamspeak-server
+
+# View detailed container information
+docker inspect teamspeak-server
+
+# Set resource limits in docker-compose.yaml
+```
+
+```yaml docker-compose.yaml
+services:
+  teamspeak:
+    image: teamspeaksystems/teamspeak6-server:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+```
+
+### System Resources
+
+For binary installations, monitor system resources:
+
+<Tabs>
+  <Tab title="Linux">
+    ```bash
+    # CPU and memory usage
+    top -p $(pgrep tsserver)
+
+    # Detailed memory information
+    ps -p $(pgrep tsserver) -o pid,vsz,rss,comm
+
+    # Network connections
+    netstat -tulpn | grep tsserver
+
+    # Open file descriptors
+    lsof -p $(pgrep tsserver) | wc -l
+    ```
+  </Tab>
+  <Tab title="Windows">
+    ```powershell
+    # CPU and memory usage
+    Get-Process tsserver | Select-Object CPU,WorkingSet64,Threads
+
+    # Network connections
+    Get-NetTCPConnection | Where-Object {$_.OwningProcess -eq (Get-Process tsserver).Id}
+
+    # Performance counters
+    Get-Counter -Counter "\Process(tsserver)\*"
+    ```
+  </Tab>
+</Tabs>
+
+## Database Monitoring
+
+### SQLite Monitoring
+
+For SQLite databases, monitor file size and integrity:
+
+```bash
+# Check database size
+ls -lh /var/tsserver/ts6server.sqlite
+
+# Run integrity check
+sqlite3 /var/tsserver/ts6server.sqlite "PRAGMA integrity_check;"
+
+# View database statistics
+sqlite3 /var/tsserver/ts6server.sqlite ".dbinfo"
+```
+
+<Warning>
+  Do not run integrity checks during peak usage times as they can temporarily impact performance.
+</Warning>
+
+### MariaDB Monitoring
+
+For MariaDB databases, use standard monitoring tools:
+
+```sql
+-- Check connection count
+SHOW STATUS LIKE 'Threads_connected';
+
+-- View active queries
+SHOW PROCESSLIST;
+
+-- Check database size
+SELECT 
+  table_schema AS 'Database',
+  ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)'
+FROM information_schema.tables
+WHERE table_schema = 'teamspeak'
+GROUP BY table_schema;
+
+-- Monitor slow queries
+SHOW VARIABLES LIKE 'slow_query_log';
+SHOW VARIABLES LIKE 'long_query_time';
+```
+
+Enable query logging for troubleshooting:
+
+```yaml tsserver.yaml
+server:
+  database:
+    config:
+      log-queries: 1
+```
+
+<Note>
+  Query logging can generate significant log volume. Only enable during troubleshooting.
+</Note>
+
+## ServerQuery Monitoring
+
+Use ServerQuery to retrieve real-time server statistics:
+
+```bash
+# Connect via HTTP query
+curl -X POST http://localhost:10080 \
+  -d "use sid=1"
+
+curl -X POST http://localhost:10080 \
+  -d "serverinfo"
+
+# Get virtual server statistics
+curl -X POST http://localhost:10080 \
+  -d "serverrequestconnectioninfo"
+```
+
+Key metrics to monitor:
+
+- `virtualserver_clientsonline` - Current connected clients
+- `virtualserver_queryclientsonline` - Active query connections
+- `virtualserver_uptime` - Server uptime in seconds
+- `virtualserver_total_bytes_uploaded` - Total data uploaded
+- `virtualserver_total_bytes_downloaded` - Total data downloaded
+- `connection_bandwidth_sent_last_second_total` - Current outbound bandwidth
+- `connection_bandwidth_received_last_second_total` - Current inbound bandwidth
+
+## Log Monitoring
+
+Monitor server logs for errors and warnings:
+
+<Tabs>
+  <Tab title="Docker">
+    ```bash
+    # Follow live logs
+    docker logs -f teamspeak-server
+
+    # View recent logs with timestamps
+    docker logs -f --timestamps teamspeak-server
+
+    # Search logs for errors
+    docker logs teamspeak-server 2>&1 | grep -i error
+
+    # Export logs to file
+    docker logs teamspeak-server > teamspeak-logs.txt 2>&1
+    ```
+  </Tab>
+  <Tab title="Binary">
+    ```bash
+    # Follow live logs
+    tail -f /var/tsserver/logs/ts6server_*.log
+
+    # Search for errors
+    grep -i error /var/tsserver/logs/ts6server_*.log
+
+    # Monitor multiple log files
+    tail -f /var/tsserver/logs/*.log
+    ```
+  </Tab>
+</Tabs>
+
+See the [Logging](/operations/logging) page for detailed information on log management.
+
+## Automated Monitoring
+
+### Using Prometheus and Grafana
+
+For advanced monitoring, integrate with Prometheus and Grafana:
+
+<Steps>
+  <Step title="Install Prometheus Node Exporter">
+    Deploy node exporter to collect system metrics:
+    
+    ```yaml docker-compose.yaml
+    services:
+      node-exporter:
+        image: prom/node-exporter:latest
+        container_name: node-exporter
+        restart: unless-stopped
+        ports:
+          - "9100:9100"
+    ```
+  </Step>
+  
+  <Step title="Configure Prometheus">
+    Add TeamSpeak server endpoints to Prometheus configuration:
+    
+    ```yaml prometheus.yml
+    scrape_configs:
+      - job_name: 'teamspeak-node'
+        static_configs:
+          - targets: ['node-exporter:9100']
+    ```
+  </Step>
+  
+  <Step title="Create Grafana Dashboards">
+    Import or create dashboards to visualize:
+    - CPU and memory usage
+    - Network traffic
+    - Connected clients
+    - Database performance
+  </Step>
+</Steps>
+
+### Alerting
+
+Set up alerts for critical conditions:
+
+- Server process stopped
+- High CPU or memory usage (&gt;80% for 5 minutes)
+- Disk space low (&lt;10% free)
+- Connection failures
+- Database errors in logs
+
+<Tip>
+  Use monitoring tools like Nagios, Zabbix, or Datadog for enterprise-grade monitoring and alerting.
+</Tip>
+
+## Performance Benchmarks
+
+Typical resource usage patterns:
+
+| Clients | CPU Usage | Memory Usage | Bandwidth (Peak) |
+|---------|-----------|--------------|------------------|
+| 10      | 5-10%     | 200-300 MB   | 0.5-1 Mbps       |
+| 32      | 15-25%    | 400-600 MB   | 1.5-3 Mbps       |
+| 50      | 25-40%    | 600-900 MB   | 3-5 Mbps         |
+
+<Note>
+  Actual usage varies based on codec settings, activity levels, and hardware specifications.
+</Note>
+
+## Troubleshooting
+
+Common monitoring issues:
+
+| Issue | Possible Cause | Solution |
+|-------|----------------|----------|
+| Health check failing | Server not responding | Check logs, verify ports, restart server |
+| High memory usage | Memory leak or large client load | Monitor trends, update server, increase resources |
+| Database slow queries | Missing indexes, high load | Enable query logging, optimize database |
+| Connection timeouts | Network issues, firewall | Check firewall rules, verify port forwarding |
+
+For more troubleshooting guidance, see the [Logging](/operations/logging) page.
