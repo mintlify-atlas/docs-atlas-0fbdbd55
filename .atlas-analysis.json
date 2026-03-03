@@ -1,0 +1,127 @@
+{
+  "projectType": "infrastructure",
+  "projectName": "TeamSpeak 6 Server",
+  "projectDescription": "Self-hosted voice communication server for gaming, education, and business with high-quality audio and low-latency performance.",
+  "theme": "aspen",
+  "primaryColor": "#2580C3",
+  "lightColor": "#4A9FDB",
+  "darkColor": "#1A5C91",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Installation",
+            "pages": [
+              "installation/docker",
+              "installation/linux",
+              "installation/windows"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/server-settings",
+              "configuration/database",
+              "configuration/ports-networking",
+              "configuration/yaml-file"
+            ]
+          },
+          {
+            "group": "Server Query",
+            "pages": [
+              "server-query/overview",
+              "server-query/http",
+              "server-query/ssh",
+              "server-query/authentication"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/monitoring",
+              "operations/logging",
+              "operations/backup-restore",
+              "operations/updates"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/virtual-servers",
+              "advanced/permissions",
+              "advanced/security",
+              "advanced/performance-tuning"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Configuration Reference",
+            "pages": [
+              "reference/cli-options",
+              "reference/environment-variables",
+              "reference/yaml-schema"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/troubleshooting",
+              "resources/faq",
+              "resources/beta-information",
+              "resources/licensing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Docker-based deployment with compose templates",
+    "SQLite and MariaDB database support",
+    "Server Query interface (HTTP/SSH/HTTPS)",
+    "Flexible configuration via CLI, environment variables, or YAML",
+    "Virtual server management",
+    "File transfer capabilities",
+    "Low-latency voice communication",
+    "High-quality audio codec"
+  ],
+  "publicApiSurface": [
+    "--accept-license",
+    "--default-voice-port",
+    "--filetransfer-port",
+    "--db-plugin",
+    "--db-host",
+    "--db-port",
+    "--db-name",
+    "--db-username",
+    "--db-password",
+    "--query-http-enable",
+    "--query-http-port",
+    "--query-ssh-enable",
+    "--query-ssh-port",
+    "--query-admin-password",
+    "--config-file",
+    "--write-config-file",
+    "TSSERVER_LICENSE_ACCEPTED",
+    "TSSERVER_DEFAULT_PORT",
+    "TSSERVER_FILE_TRANSFER_PORT",
+    "TSSERVER_DATABASE_PLUGIN",
+    "TSSERVER_DATABASE_HOST",
+    "TSSERVER_QUERY_HTTP_ENABLED",
+    "TSSERVER_QUERY_SSH_ENABLED"
+  ]
+}
